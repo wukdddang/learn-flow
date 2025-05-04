@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="bg-white py-4 border-b">
-        <div className="container flex justify-between items-center">
+    <div className="flex flex-col min-h-screen items-center">
+      <header className="bg-white py-4 border-b w-full">
+        <div className="container flex justify-between items-center max-w-7xl mx-auto px-4">
           <h1 className="text-2xl font-bold">LearnFlow</h1>
           <Link href="/dashboard">
             <Button>대시보드 바로가기</Button>
@@ -14,9 +14,9 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="flex-grow">
-        <section className="py-20 bg-gradient-to-b from-white to-gray-50">
-          <div className="container text-center">
+      <main className="flex-grow w-full">
+        <section className="py-20 bg-gradient-to-b from-white to-gray-50 w-full">
+          <div className="container text-center max-w-7xl mx-auto px-4">
             <h2 className="text-4xl font-bold mb-4">
               학습 계획 관리의 모든 것
             </h2>
@@ -32,8 +32,8 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="py-16 bg-white">
-          <div className="container">
+        <section className="py-16 bg-white w-full">
+          <div className="container max-w-7xl mx-auto px-4">
             <h3 className="text-2xl font-bold text-center mb-12">주요 기능</h3>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -74,8 +74,8 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="bg-gray-900 text-white py-6">
-        <div className="container text-center">
+      <footer className="bg-gray-900 text-white py-6 w-full">
+        <div className="container text-center max-w-7xl mx-auto px-4">
           <p>© {new Date().getFullYear()} LearnFlow. 모든 권리 보유.</p>
         </div>
       </footer>

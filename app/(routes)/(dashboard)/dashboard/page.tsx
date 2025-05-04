@@ -11,7 +11,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("plans");
 
   return (
-    <div className="container py-6">
+    <div className="container py-6 max-w-7xl mx-auto px-4">
       <h1 className="text-3xl font-bold mb-6">학습 관리 대시보드</h1>
 
       <Tabs defaultValue="plans" value={activeTab} onValueChange={setActiveTab}>

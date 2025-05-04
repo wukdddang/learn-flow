@@ -162,6 +162,21 @@ function TimelineHeader({
     }
   }, [startDate, endDate, days]);
 
+  // 요일 한글 변환 함수
+  const getDayOfWeekKorean = (date: Date) => {
+    const dayOfWeek = format(date, "E");
+    const dayOfWeekMap: { [key: string]: string } = {
+      Mon: "월",
+      Tue: "화",
+      Wed: "수",
+      Thu: "목",
+      Fri: "금",
+      Sat: "토",
+      Sun: "일",
+    };
+    return dayOfWeekMap[dayOfWeek] || dayOfWeek;
+  };
+
   return (
     <div className="mb-4">
       <div className="flex justify-between items-center mb-2">
@@ -195,31 +210,44 @@ function TimelineHeader({
               ))}
             </div>
 
-            {/* 일별 눈금 (5일 간격) */}
-            <div className="flex relative h-6 mt-1">
-              {days.map((day, idx) => (
-                <div
-                  key={idx}
-                  className={`border-l flex-1 relative ${
-                    isToday(day)
-                      ? "border-red-500 border-l-2"
-                      : idx % 5 === 0
-                      ? "border-gray-300"
-                      : "border-gray-100"
-                  }`}
-                >
-                  {idx % 5 === 0 && (
-                    <span className="absolute -top-1 -left-2 text-[9px] text-gray-500">
-                      {format(day, "d")}
-                    </span>
-                  )}
-                  {isToday(day) && (
-                    <div className="absolute -top-7 -left-7 bg-red-500 text-white rounded-sm px-1 text-[10px]">
-                      오늘
-                    </div>
-                  )}
-                </div>
-              ))}
+            {/* 개선된 일별 눈금 */}
+            <div className="flex relative h-10 mt-1">
+              {days.map((day, idx) => {
+                const isCurrentDay = isToday(day);
+                return (
+                  <div
+                    key={idx}
+                    className={`border-l flex-1 relative ${
+                      isCurrentDay
+                        ? "border-red-500 border-l-2"
+                        : idx % 5 === 0
+                        ? "border-gray-300"
+                        : "border-gray-100"
+                    }`}
+                  >
+                    {/* 5일 간격 또는 오늘 날짜는 항상 날짜와 요일 표시 */}
+                    {(idx % 5 === 0 || isCurrentDay) && (
+                      <div
+                        className={`absolute -top-1 -left-3 text-[10px] flex flex-col items-center ${
+                          isCurrentDay
+                            ? "text-red-500 font-bold"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        <span>{format(day, "d")}</span>
+                        <span className="font-medium">
+                          {getDayOfWeekKorean(day)}
+                        </span>
+                      </div>
+                    )}
+                    {isCurrentDay && (
+                      <div className="absolute -top-7 -left-7 bg-red-500 text-white rounded-sm px-1 py-0.5 text-[10px]">
+                        오늘
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -275,8 +303,12 @@ function TimelinePlanItem({
   const widthPercentage = (planDuration / totalDays) * 100;
 
   return (
-    <div className={`mb-2 ${level > 0 ? "ml-6" : ""}`}>
-      <div className="flex items-center group">
+    <div
+      className={`mb-2 ${level > 0 ? "ml-6" : ""} ${
+        level === 0 ? "border-t border-b border-gray-200 py-2" : ""
+      }`}
+    >
+      <div className="flex items-center group hover:bg-gray-50 rounded-md py-1">
         {/* 계획 제목 영역 */}
         <div className="w-48 flex-shrink-0 flex items-center pr-2">
           <div className="flex items-center">
