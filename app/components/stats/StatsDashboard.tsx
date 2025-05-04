@@ -27,7 +27,8 @@ import {
 } from "@/app/lib/date-utils";
 
 export function StatsDashboard() {
-  const { plans, studyLogs } = useStore();
+  const plans = useStore((state) => state.plans);
+  const studyLogs = useStore((state) => state.studyLogs);
 
   // 통계 계산
   const stats = useMemo<Stats>(() => {

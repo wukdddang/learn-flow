@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Edit, Trash, ChevronRight, ChevronDown } from "lucide-react";
+import { shallow } from "zustand/shallow";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -56,7 +57,8 @@ interface PlanItemProps {
 }
 
 function PlanItem({ plan, level = 0 }: PlanItemProps) {
-  const { updatePlan, deletePlan } = useStore();
+  const updatePlan = useStore((state) => state.updatePlan);
+  const deletePlan = useStore((state) => state.deletePlan);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -191,10 +193,12 @@ function PlanItem({ plan, level = 0 }: PlanItemProps) {
 }
 
 export function PlanList() {
-  const { plans, addPlan } = useStore((state) => ({
-    plans: state.plans.filter((p) => !p.parentPlanId), // 최상위 계획만 필터링
-    addPlan: state.addPlan,
-  }));
+  const plans = useStore((state) => state.plans);
+  const addPlan = useStore((state) => state.addPlan);
+
+  const topLevelPlans = useMemo(() => {
+    return plans.filter((p) => !p.parentPlanId);
+  }, [plans]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -223,13 +227,13 @@ export function PlanList() {
         </Dialog>
       </div>
 
-      {plans.length === 0 ? (
+      {topLevelPlans.length === 0 ? (
         <div className="text-center p-8 border rounded-md bg-gray-50">
           <p>계획이 없습니다. 새 계획을 생성해보세요!</p>
         </div>
       ) : (
         <div>
-          {plans.map((plan) => (
+          {topLevelPlans.map((plan) => (
             <PlanItem key={plan.id} plan={plan} />
           ))}
         </div>

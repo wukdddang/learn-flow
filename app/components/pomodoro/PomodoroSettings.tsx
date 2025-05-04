@@ -30,10 +30,10 @@ interface PomodoroSettingsProps {
 }
 
 export function PomodoroSettings({ onClose }: PomodoroSettingsProps) {
-  const { pomodoroSettings, updatePomodoroSettings } = useStore((state) => ({
-    pomodoroSettings: state.pomodoroSettings,
-    updatePomodoroSettings: state.updatePomodoroSettings,
-  }));
+  const pomodoroSettings = useStore((state) => state.pomodoroSettings);
+  const updatePomodoroSettings = useStore(
+    (state) => state.updatePomodoroSettings
+  );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),

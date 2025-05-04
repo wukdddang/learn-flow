@@ -29,7 +29,7 @@ type TimerState = "idle" | "running" | "paused";
 type TimerMode = "work" | "break" | "longBreak";
 
 export function PomodoroTimer() {
-  const { pomodoroSettings } = useStore();
+  const pomodoroSettings = useStore((state) => state.pomodoroSettings);
   const [timerState, setTimerState] = useState<TimerState>("idle");
   const [mode, setMode] = useState<TimerMode>("work");
   const [timeLeft, setTimeLeft] = useState(pomodoroSettings.workDuration * 60);

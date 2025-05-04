@@ -22,8 +22,13 @@ import { useStore } from "@/app/lib/store";
 import { format } from "@/app/lib/date-utils";
 
 export function StudyLogList() {
-  const { studyLogs, plans, addStudyLog, updateStudyLog, deleteStudyLog } =
-    useStore();
+  // 각 상태를 개별적으로 선택하여 불필요한 리렌더링 방지
+  const studyLogs = useStore((state) => state.studyLogs);
+  const plans = useStore((state) => state.plans);
+  const addStudyLog = useStore((state) => state.addStudyLog);
+  const updateStudyLog = useStore((state) => state.updateStudyLog);
+  const deleteStudyLog = useStore((state) => state.deleteStudyLog);
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<string | null>(null);
 
