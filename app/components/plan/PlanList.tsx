@@ -60,8 +60,14 @@ const getStatusColor = (status: PlanStatus) => {
 const getPlanTimelineColor = (
   startDate: Date,
   endDate: Date,
-  status: PlanStatus
+  status: PlanStatus,
+  customColor?: string
 ) => {
+  // 사용자 지정 색상이 있으면 우선 사용
+  if (customColor) {
+    return customColor;
+  }
+
   if (status === PlanStatus.COMPLETED) {
     return "bg-green-500";
   } else if (status === PlanStatus.CANCELED) {
@@ -102,158 +108,16 @@ const calculatePosition = (
   return ((target - start) / (end - start)) * width;
 };
 
-interface TimelineProps {
-  startDate: Date;
-  endDate: Date;
-  onPrevMonth: () => void;
-  onNextMonth: () => void;
-  scrollRef: React.RefObject<HTMLDivElement | null>;
-  dayWidth: number;
-}
+// 날짜가 해당하는 분기와 월 위치를 계산하는 함수
+const getQuarterAndMonthPosition = (date: Date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth(); // 0~11
+  const quarter = Math.floor(month / 3) + 1; // 1~4분기
+  const monthInQuarter = month % 3; // 분기 내 월 위치 (0, 1, 2)
+  const day = date.getDate(); // 1~31
 
-// 타임라인 헤더 컴포넌트 수정 - 각 분기별 최소 너비 300px로 설정하고 스크롤 가능하게 변경
-function TimelineHeader({
-  startDate,
-  endDate,
-  onPrevMonth,
-  onNextMonth,
-  scrollRef,
-  dayWidth,
-}: TimelineProps) {
-  const timelineRef = useRef<HTMLDivElement>(null);
-  const [todayPosition, setTodayPosition] = useState<number | null>(null);
-
-  // 현재 날짜
-  const today = new Date();
-  const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth() + 1;
-  const currentQuarter = Math.floor((currentMonth - 1) / 3) + 1;
-
-  // 표시할 년도 목록 (현재 년도 기준 ±2년)
-  const years = useMemo(() => {
-    const result = [];
-    for (let year = currentYear - 2; year <= currentYear + 2; year++) {
-      result.push(year);
-    }
-    return result;
-  }, [currentYear]);
-
-  // 분기 정보
-  const quarters = [
-    { id: 1, months: [1, 2, 3], label: "1분기" },
-    { id: 2, months: [4, 5, 6], label: "2분기" },
-    { id: 3, months: [7, 8, 9], label: "3분기" },
-    { id: 4, months: [10, 11, 12], label: "4분기" },
-  ];
-
-  // 모든 년도-분기 조합 생성
-  const allYearQuarters = useMemo(() => {
-    const result = [];
-    for (const year of years) {
-      for (const quarter of quarters) {
-        result.push({
-          year,
-          ...quarter,
-        });
-      }
-    }
-    return result;
-  }, [years]);
-
-  // 현재 년도-분기 찾기
-  const currentYearQuarterIndex = allYearQuarters.findIndex(
-    (yq) => yq.year === currentYear && yq.id === currentQuarter
-  );
-
-  // 전체 타임라인 너비 계산 (각 분기별 최소 너비 300px)
-  const timelineWidth = allYearQuarters.length * 300;
-
-  return (
-    <div className="mb-6">
-      <div className="relative border-b pb-2">
-        {/* 스크롤 가능한 컨테이너 */}
-        <div className="overflow-x-auto" ref={scrollRef}>
-          <div style={{ width: `${timelineWidth}px`, minWidth: "100%" }}>
-            <div className="flex flex-col">
-              {/* 단일 행으로 모든 년도와 분기 표시 */}
-              <div className="flex w-full">
-                {allYearQuarters.map((yearQuarter, index) => (
-                  <div
-                    key={`${yearQuarter.year}-q${yearQuarter.id}`}
-                    className={`text-center py-2 font-medium border-r last:border-r-0 ${
-                      yearQuarter.year === currentYear
-                        ? "text-blue-600"
-                        : "text-gray-500"
-                    }`}
-                    style={{ minWidth: "300px", flex: "1" }}
-                  >
-                    {yearQuarter.year}
-                  </div>
-                ))}
-              </div>
-
-              {/* 분기 표시 */}
-              <div className="flex w-full">
-                {allYearQuarters.map((yearQuarter, index) => (
-                  <div
-                    key={`quarter-${yearQuarter.year}-q${yearQuarter.id}`}
-                    className={`relative border-t border-gray-200 py-2 ${
-                      yearQuarter.year === currentYear &&
-                      yearQuarter.id === currentQuarter
-                        ? "bg-blue-50"
-                        : ""
-                    }`}
-                    style={{ minWidth: "300px", flex: "1" }}
-                  >
-                    <div className="text-center text-sm text-gray-500">
-                      {yearQuarter.label}
-                    </div>
-
-                    {/* 월 표시 */}
-                    <div className="flex justify-between px-4 mt-1">
-                      {yearQuarter.months.map((month) => (
-                        <div
-                          key={`${yearQuarter.year}-${month}`}
-                          className={`text-xs ${
-                            yearQuarter.year === currentYear &&
-                            month === currentMonth
-                              ? "text-blue-600 font-bold"
-                              : "text-gray-400"
-                          }`}
-                        >
-                          {month}월
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* 현재 날짜 표시 */}
-                    {yearQuarter.year === currentYear &&
-                      yearQuarter.months.includes(currentMonth) && (
-                        <div
-                          className="absolute top-0 bottom-0 w-0.5 bg-blue-500"
-                          style={{
-                            left: `${
-                              (yearQuarter.months.indexOf(currentMonth) / 3) *
-                                100 +
-                              100 / 6
-                            }%`,
-                          }}
-                        >
-                          <div className="absolute -top-6 -translate-x-1/2 bg-blue-500 text-white rounded-sm px-1 py-0.5 text-[10px]">
-                            오늘
-                          </div>
-                        </div>
-                      )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+  return { year, quarter, month: month + 1, monthInQuarter, day };
+};
 
 interface TimelinePlanItemProps {
   plan: Plan;
@@ -264,7 +128,7 @@ interface TimelinePlanItemProps {
   dayWidth: number;
 }
 
-// 타임라인 계획 아이템 컴포넌트 수정 - 각 분기별 최소 너비 300px로 설정
+// 타임라인 계획 아이템 컴포넌트
 function TimelinePlanItem({
   plan,
   level,
@@ -286,33 +150,110 @@ function TimelinePlanItem({
   const timelineColor = getPlanTimelineColor(
     planStartDate,
     planEndDate,
-    plan.status
+    plan.status,
+    plan.color
   );
 
-  // 계획의 시작 연도, 월, 분기 계산
-  const planYear = planStartDate.getFullYear();
-  const planMonth = planStartDate.getMonth() + 1;
-  const planQuarter = Math.floor((planMonth - 1) / 3) + 1;
+  // 계획의 시작 날짜의 분기 및 월 위치 계산
+  const startPosition = getQuarterAndMonthPosition(planStartDate);
+
+  // 계획의 종료 날짜의 분기 및 월 위치 계산
+  const endPosition = getQuarterAndMonthPosition(planEndDate);
 
   // 현재 년도 계산 및 표시 범위 설정
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
+  // 분기 정보
+  const quarters = [
+    { id: 1, months: [1, 2, 3], label: "1분기" },
+    { id: 2, months: [4, 5, 6], label: "2분기" },
+    { id: 3, months: [7, 8, 9], label: "3분기" },
+    { id: 4, months: [10, 11, 12], label: "4분기" },
+  ];
+
   // 모든 년도-분기 조합 생성
   const allYearQuarters = [];
   for (const year of years) {
     for (let quarter = 1; quarter <= 4; quarter++) {
-      allYearQuarters.push({ year, quarter });
+      allYearQuarters.push({
+        year,
+        quarter,
+        startMonth: (quarter - 1) * 3 + 1, // 분기 시작 월 (1, 4, 7, 10)
+        endMonth: quarter * 3, // 분기 끝 월 (3, 6, 9, 12)
+      });
     }
   }
 
-  // 계획이 해당하는 년도-분기 조합 인덱스 찾기
-  const planYearQuarterIndex = allYearQuarters.findIndex(
-    (yq) => yq.year === planYear && yq.quarter === planQuarter
-  );
+  // 각 분기별 계획 표시 여부 및 위치 계산
+  const quarterRenderInfo = allYearQuarters.map((yq) => {
+    // 이 분기가 계획 기간과 겹치는지 확인
+    const isStartInQuarter =
+      yq.year === startPosition.year && yq.quarter === startPosition.quarter;
+    const isEndInQuarter =
+      yq.year === endPosition.year && yq.quarter === endPosition.quarter;
+    const isMiddleQuarter =
+      (yq.year > startPosition.year ||
+        (yq.year === startPosition.year &&
+          yq.quarter > startPosition.quarter)) &&
+      (yq.year < endPosition.year ||
+        (yq.year === endPosition.year && yq.quarter < endPosition.quarter));
+
+    const shouldRender = isStartInQuarter || isEndInQuarter || isMiddleQuarter;
+
+    // 위치 및 너비 계산
+    let startPercent = 0;
+    let widthPercent = 100;
+
+    if (isStartInQuarter) {
+      // 시작 월이 분기의 시작인지, 중간인지, 끝인지에 따라 위치 조정
+      const monthPos = startPosition.monthInQuarter;
+      // 월 위치에 따른 시작점 계산 (각 월은 분기의 1/3씩 차지)
+      startPercent = monthPos * 33.33;
+
+      // 일(day) 기준으로 위치 조정 (월 내 비율 계산)
+      const daysInMonth = new Date(
+        startPosition.year,
+        startPosition.month,
+        0
+      ).getDate();
+      const dayPercent = ((startPosition.day - 1) / daysInMonth) * 33.33;
+      startPercent += dayPercent;
+
+      if (isEndInQuarter) {
+        // 같은 분기 내에서 시작하고 끝나는 경우
+        const endMonthPos = endPosition.monthInQuarter;
+        const endDayPercent =
+          (endPosition.day /
+            new Date(endPosition.year, endPosition.month, 0).getDate()) *
+          33.33;
+        const endPosition2 = endMonthPos * 33.33 + endDayPercent;
+        widthPercent = endPosition2 - startPercent;
+      } else {
+        widthPercent = 100 - startPercent;
+      }
+    } else if (isEndInQuarter) {
+      // 이 분기에서 끝나는 경우
+      const endMonthPos = endPosition.monthInQuarter;
+      const endDayPercent =
+        (endPosition.day /
+          new Date(endPosition.year, endPosition.month, 0).getDate()) *
+        33.33;
+      widthPercent = endMonthPos * 33.33 + endDayPercent;
+    }
+
+    return {
+      shouldRender,
+      isStartInQuarter,
+      isEndInQuarter,
+      startPercent,
+      widthPercent,
+    };
+  });
 
   // 표시 범위를 벗어나는 경우
-  if (planYearQuarterIndex === -1) return null;
+  const isInRange = quarterRenderInfo.some((info) => info.shouldRender);
+  if (!isInRange) return null;
 
   return (
     <div
@@ -344,32 +285,48 @@ function TimelinePlanItem({
           </div>
         </div>
 
-        {/* 분기별 타임라인 - 하나의 행에 모든 년도와 분기 표시 */}
-        <div className="flex-grow overflow-x-auto">
+        {/* 분기별 타임라인 - 직사각형 영역으로 표시 */}
+        <div className="flex-grow">
           <div
             className="flex w-full relative"
             style={{ minWidth: `${allYearQuarters.length * 300}px` }}
           >
-            {allYearQuarters.map((yearQuarter, index) => (
-              <div
-                key={`${plan.id}-${yearQuarter.year}-q${yearQuarter.quarter}`}
-                className="flex-1 relative flex justify-center items-center"
-                style={{ minWidth: "300px" }}
-              >
-                {index === planYearQuarterIndex && (
-                  <div
-                    className={`w-4 h-4 rounded-full ${timelineColor} border-2 border-white z-10 hover:scale-125 transition-transform`}
-                    title={`${plan.name} (${format(
-                      planStartDate,
-                      "yyyy년 MM월 dd일"
-                    )} ~ ${format(planEndDate, "yyyy년 MM월 dd일")})`}
-                  ></div>
-                )}
-              </div>
-            ))}
+            {allYearQuarters.map((yearQuarter, index) => {
+              const renderInfo = quarterRenderInfo[index];
+
+              return (
+                <div
+                  key={`${plan.id}-${yearQuarter.year}-q${yearQuarter.quarter}`}
+                  className="flex-1 relative flex justify-center items-center"
+                  style={{ minWidth: "300px" }}
+                >
+                  {/* 계획이 해당 분기 내에 있는 경우 직사각형으로 표시 */}
+                  {renderInfo.shouldRender && (
+                    <div
+                      className={`h-8 ${timelineColor} rounded-md z-10 hover:opacity-80 transition-opacity relative`}
+                      style={{
+                        position: "absolute",
+                        left: `${renderInfo.startPercent}%`,
+                        width: `${renderInfo.widthPercent}%`,
+                      }}
+                      title={`${plan.name} (${format(
+                        planStartDate,
+                        "yyyy년 MM월 dd일"
+                      )} ~ ${format(planEndDate, "yyyy년 MM월 dd일")})`}
+                    >
+                      {renderInfo.isStartInQuarter && (
+                        <span className="text-xs text-white font-medium truncate px-2 absolute inset-0 flex items-center overflow-hidden">
+                          {plan.name}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
             {/* 계획 정보 툴팁 (호버 시 표시) */}
-            <div className="group-hover:opacity-100 opacity-0 absolute top-full mt-2 left-1/2 transform -translate-x-1/2 bg-white p-2 rounded shadow-lg text-xs border z-20 max-w-xs">
+            <div className="group-hover:opacity-100 opacity-0 absolute top-full mt-2 left-1/2 transform -translate-x-1/2 bg-white p-2 rounded shadow-lg text-xs border z-30 max-w-xs">
               <p className="font-medium">{plan.name}</p>
               {plan.description && (
                 <p className="text-gray-600 mt-1">{plan.description}</p>
@@ -440,6 +397,7 @@ function TimelinePlanItem({
                   description: plan.description,
                   startDate: new Date(plan.startDate),
                   endDate: new Date(plan.endDate),
+                  color: plan.color,
                 }}
                 onSubmit={(values) => {
                   updatePlan(plan.id, values);
@@ -517,8 +475,34 @@ export function PlanList() {
     setZoomLevel((prev) => Math.max(prev - 5, 10)); // 최소 10px
   };
 
-  // 헤더와 계획 목록 스크롤 동기화를 위한 ref (페이지 스크롤 제거로 필요 없음)
-  const headerScrollRef = useRef<HTMLDivElement>(null);
+  // 현재 년도 계산 및 표시 범위 설정
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+
+  // 분기 정보
+  const quarters = [
+    { id: 1, months: [1, 2, 3], label: "1분기" },
+    { id: 2, months: [4, 5, 6], label: "2분기" },
+    { id: 3, months: [7, 8, 9], label: "3분기" },
+    { id: 4, months: [10, 11, 12], label: "4분기" },
+  ];
+
+  // 모든 년도-분기 조합 생성
+  const allYearQuarters = useMemo(() => {
+    const result = [];
+    for (const year of years) {
+      for (const quarter of quarters) {
+        result.push({
+          year,
+          ...quarter,
+        });
+      }
+    }
+    return result;
+  }, [years]);
+
+  // 스크롤 참조 - 하나의 스크롤 컨테이너만 사용
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const topLevelPlans = useMemo(() => {
     return plans.filter((p) => !p.parentPlanId);
@@ -526,8 +510,11 @@ export function PlanList() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  // 전체 타임라인 너비 계산 (각 분기별 최소 너비 300px)
+  const timelineWidth = allYearQuarters.length * 300;
+
   return (
-    <div className="relative">
+    <div className="relative flex flex-col h-[calc(100vh-12rem)]">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">나의 계획 로드맵</h2>
         <div className="flex space-x-2">
@@ -557,37 +544,126 @@ export function PlanList() {
         </div>
       </div>
 
-      {/* 타임라인 헤더 */}
-      <TimelineHeader
-        startDate={timelineStartDate}
-        endDate={timelineEndDate}
-        onPrevMonth={() => {}}
-        onNextMonth={() => {}}
-        scrollRef={headerScrollRef}
-        dayWidth={zoomLevel}
-      />
+      {/* 통합된 스크롤 컨테이너 */}
+      <div
+        className="flex-grow overflow-auto"
+        ref={scrollContainerRef}
+        style={{
+          msOverflowStyle: "none",
+          scrollbarWidth: "none",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
+        <div style={{ minWidth: `${timelineWidth}px` }}>
+          {/* 타임라인 헤더 */}
+          <div className="mb-6">
+            <div className="relative border-b pb-2">
+              <div className="flex flex-col">
+                {/* 단일 행으로 모든 년도와 분기 표시 */}
+                <div className="flex w-full">
+                  {allYearQuarters.map((yearQuarter, index) => (
+                    <div
+                      key={`${yearQuarter.year}-q${yearQuarter.id}`}
+                      className={`text-center py-2 font-medium border-r last:border-r-0 ${
+                        yearQuarter.year === currentYear
+                          ? "text-blue-600"
+                          : "text-gray-500"
+                      }`}
+                      style={{ minWidth: "300px", flex: "1" }}
+                    >
+                      {yearQuarter.year}
+                    </div>
+                  ))}
+                </div>
 
-      {/* 계획 목록 - 스크롤 제거 */}
-      <div className="mt-4">
-        {topLevelPlans.length === 0 ? (
-          <div className="text-center p-8 border rounded-md bg-gray-50">
-            <p>계획이 없습니다. 새 계획을 생성해보세요!</p>
+                {/* 분기 표시 */}
+                <div className="flex w-full">
+                  {allYearQuarters.map((yearQuarter, index) => (
+                    <div
+                      key={`quarter-${yearQuarter.year}-q${yearQuarter.id}`}
+                      className={`relative border-t border-gray-200 py-2 ${
+                        yearQuarter.year === currentYear &&
+                        yearQuarter.id ===
+                          Math.floor(new Date().getMonth() / 3 + 1)
+                          ? "bg-blue-50"
+                          : ""
+                      }`}
+                      style={{ minWidth: "300px", flex: "1" }}
+                    >
+                      <div className="text-center text-sm text-gray-500">
+                        {yearQuarter.label}
+                      </div>
+
+                      {/* 월 표시 */}
+                      <div className="flex justify-between px-4 mt-1">
+                        {yearQuarter.months.map((month) => (
+                          <div
+                            key={`${yearQuarter.year}-${month}`}
+                            className={`text-xs ${
+                              yearQuarter.year === currentYear &&
+                              month === new Date().getMonth() + 1
+                                ? "text-blue-600 font-bold"
+                                : "text-gray-400"
+                            }`}
+                          >
+                            {month}월
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 현재 날짜 표시 */}
+                      {yearQuarter.year === currentYear &&
+                        yearQuarter.months.includes(
+                          new Date().getMonth() + 1
+                        ) && (
+                          <div
+                            className="absolute top-0 bottom-0 w-0.5 bg-blue-500"
+                            style={{
+                              left: `${
+                                (yearQuarter.months.indexOf(
+                                  new Date().getMonth() + 1
+                                ) /
+                                  3) *
+                                  100 +
+                                100 / 6
+                              }%`,
+                            }}
+                          >
+                            <div className="absolute -top-6 -translate-x-1/2 bg-blue-500 text-white rounded-sm px-1 py-0.5 text-[10px]">
+                              오늘
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-        ) : (
-          <div>
-            {topLevelPlans.map((plan) => (
-              <TimelinePlanItem
-                key={plan.id}
-                plan={plan}
-                level={0}
-                startDate={timelineStartDate}
-                endDate={timelineEndDate}
-                totalDays={totalDays}
-                dayWidth={zoomLevel}
-              />
-            ))}
+
+          {/* 계획 목록 섹션 */}
+          <div className="mt-4">
+            {topLevelPlans.length === 0 ? (
+              <div className="text-center p-8 border rounded-md bg-gray-50">
+                <p>계획이 없습니다. 새 계획을 생성해보세요!</p>
+              </div>
+            ) : (
+              <div>
+                {topLevelPlans.map((plan) => (
+                  <TimelinePlanItem
+                    key={plan.id}
+                    plan={plan}
+                    level={0}
+                    startDate={timelineStartDate}
+                    endDate={timelineEndDate}
+                    totalDays={totalDays}
+                    dayWidth={zoomLevel}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

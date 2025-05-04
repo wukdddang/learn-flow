@@ -38,25 +38,47 @@ export const useStore = create<StoreState>((set) => ({
   },
 
   // 계획 관리
-  addPlan: (plan) =>
-    set((state) => ({
-      plans: [
-        ...state.plans,
-        {
-          ...plan,
-          id: uuidv4(),
-          progress: 0,
-          status: PlanStatus.NOT_STARTED,
-        },
-      ],
-    })),
+  addPlan: (planData) => {
+    set((state) => {
+      const newPlan: Plan = {
+        id: uuidv4(),
+        name: planData.name || "새 계획",
+        description: planData.description,
+        startDate: planData.startDate,
+        endDate: planData.endDate,
+        status: PlanStatus.NOT_STARTED,
+        progress: 0,
+        color: planData.color,
+      };
 
-  updatePlan: (id, updatedPlan) =>
-    set((state) => ({
-      plans: state.plans.map((plan) =>
-        plan.id === id ? { ...plan, ...updatedPlan } : plan
-      ),
-    })),
+      return {
+        plans: [...state.plans, newPlan],
+      };
+    });
+  },
+
+  updatePlan: (id, planData) => {
+    set((state) => {
+      const updatedPlans = state.plans.map((plan) => {
+        if (plan.id === id) {
+          return {
+            ...plan,
+            name: planData.name || plan.name,
+            description: planData.description ?? plan.description,
+            startDate: planData.startDate || plan.startDate,
+            endDate: planData.endDate || plan.endDate,
+            color: planData.color ?? plan.color,
+          };
+        }
+
+        return plan;
+      });
+
+      return {
+        plans: updatedPlans,
+      };
+    });
+  },
 
   deletePlan: (id) =>
     set((state) => {
@@ -86,14 +108,18 @@ export const useStore = create<StoreState>((set) => ({
     }),
 
   // 하위 계획 관리
-  addSubPlan: (parentId, plan) =>
+  addSubPlan: (parentId, planData) => {
     set((state) => {
-      const newSubPlan = {
-        ...plan,
+      const newSubPlan: Plan = {
         id: uuidv4(),
-        progress: 0,
+        name: planData.name || "새 하위 계획",
+        description: planData.description,
+        startDate: planData.startDate,
+        endDate: planData.endDate,
         status: PlanStatus.NOT_STARTED,
+        progress: 0,
         parentPlanId: parentId,
+        color: planData.color,
       };
 
       return {
@@ -107,7 +133,8 @@ export const useStore = create<StoreState>((set) => ({
           return plan;
         }),
       };
-    }),
+    });
+  },
 
   // 공부 로그 관리
   addStudyLog: (log) =>

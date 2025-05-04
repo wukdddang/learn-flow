@@ -16,6 +16,7 @@ export interface Plan {
   parentPlanId?: string; // 상위 계획 ID (있는 경우)
   subPlans?: Plan[]; // 하위 계획
   studyLogs?: StudyLog[]; // 관련 공부 기록
+  color?: string; // 계획 색상
 }
 
 export interface StudyLog {

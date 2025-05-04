@@ -2,7 +2,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, Check } from "lucide-react";
 
 import {
   Form,
@@ -21,15 +21,36 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { cn } from "@/lib/utils";
 import { format } from "@/app/lib/date-utils";
+
+// 계획 색상 목록
+export const planColors = [
+  { value: "bg-indigo-400", label: "인디고" },
+  { value: "bg-blue-500", label: "파랑" },
+  { value: "bg-green-500", label: "녹색" },
+  { value: "bg-yellow-500", label: "노랑" },
+  { value: "bg-red-500", label: "빨강" },
+  { value: "bg-purple-500", label: "보라" },
+  { value: "bg-pink-500", label: "분홍" },
+  { value: "bg-orange-500", label: "주황" },
+  { value: "bg-teal-500", label: "청록" },
+];
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "최소 2글자 이상 입력해주세요" }),
   description: z.string().optional(),
   startDate: z.date(),
   endDate: z.date(),
+  color: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -48,6 +69,7 @@ export function PlanForm({ initialValues, onSubmit, onCancel }: PlanFormProps) {
       description: initialValues?.description || "",
       startDate: initialValues?.startDate || new Date(),
       endDate: initialValues?.endDate || new Date(),
+      color: initialValues?.color || planColors[0].value,
     },
   });
 
@@ -164,6 +186,47 @@ export function PlanForm({ initialValues, onSubmit, onCancel }: PlanFormProps) {
             )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="color"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>색상</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="색상을 선택하세요">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-4 h-4 rounded-full ${field.value}`}
+                        ></div>
+                        <span>
+                          {planColors.find(
+                            (color) => color.value === field.value
+                          )?.label || "색상 선택"}
+                        </span>
+                      </div>
+                    </SelectValue>
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {planColors.map((color) => (
+                    <SelectItem key={color.value} value={color.value}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-4 h-4 rounded-full ${color.value}`}
+                        ></div>
+                        <span>{color.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <div className="flex justify-end space-x-2 pt-4">
           <Button variant="outline" onClick={onCancel} type="button">
