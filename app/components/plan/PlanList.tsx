@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   Plus,
   Edit,
@@ -27,52 +27,231 @@ import {
 import { PlanForm } from "./PlanForm";
 import { Plan, PlanStatus } from "@/app/lib/types";
 import { useStore } from "@/app/lib/store";
-import { format, differenceInDays } from "@/app/lib/date-utils";
+import {
+  format,
+  differenceInDays,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  addMonths,
+  subMonths,
+  isToday,
+  isSameMonth,
+  getMonth,
+  getYear,
+} from "@/app/lib/date-utils";
 
 const getStatusColor = (status: PlanStatus) => {
   switch (status) {
     case PlanStatus.NOT_STARTED:
-      return "bg-gray-100 text-gray-800";
+      return "bg-gray-200 text-gray-800";
     case PlanStatus.IN_PROGRESS:
-      return "bg-blue-100 text-blue-800";
+      return "bg-blue-100 text-blue-800 border-blue-400";
     case PlanStatus.COMPLETED:
-      return "bg-green-100 text-green-800";
+      return "bg-green-100 text-green-800 border-green-400";
     case PlanStatus.CANCELED:
-      return "bg-red-100 text-red-800";
+      return "bg-red-100 text-red-800 border-red-400";
     default:
       return "bg-gray-100 text-gray-800";
   }
 };
 
-// 날짜 범위에 따른 시각적 너비 계산 함수
-const getTimelineWidth = (startDate: Date, endDate: Date) => {
-  const days = differenceInDays(new Date(endDate), new Date(startDate)) + 1;
-  // 최소 너비 보장 (1일인 경우도 충분한 공간 확보)
-  return Math.max(days * 5, 30);
-};
-
 // 계획 기간에 따른 색상 지정 함수
-const getPlanTimelineColor = (startDate: Date, endDate: Date) => {
+const getPlanTimelineColor = (
+  startDate: Date,
+  endDate: Date,
+  status: PlanStatus
+) => {
+  if (status === PlanStatus.COMPLETED) {
+    return "bg-green-500";
+  } else if (status === PlanStatus.CANCELED) {
+    return "bg-red-300";
+  } else if (status === PlanStatus.IN_PROGRESS) {
+    return "bg-blue-500";
+  }
+
   const days = differenceInDays(new Date(endDate), new Date(startDate));
 
   // 기간별 색상 분류
   if (days <= 7) {
-    return "bg-blue-400"; // 1주일 이내
+    return "bg-indigo-400"; // 1주일 이내
   } else if (days <= 30) {
-    return "bg-indigo-500"; // 1개월 이내
+    return "bg-purple-500"; // 1개월 이내
   } else if (days <= 90) {
-    return "bg-purple-500"; // 3개월 이내
+    return "bg-violet-500"; // 3개월 이내
   } else {
-    return "bg-violet-600"; // 장기 계획
+    return "bg-pink-500"; // 장기 계획
   }
 };
 
-interface PlanItemProps {
-  plan: Plan;
-  level?: number;
+// 타임라인 계산 헬퍼 함수
+const calculatePosition = (
+  date: Date,
+  startDate: Date,
+  endDate: Date,
+  width: number
+) => {
+  const start = startDate.getTime();
+  const end = endDate.getTime();
+  const target = date.getTime();
+
+  // 범위를 벗어나는 경우 처리
+  if (target < start) return 0;
+  if (target > end) return width;
+
+  return ((target - start) / (end - start)) * width;
+};
+
+interface TimelineProps {
+  startDate: Date;
+  endDate: Date;
+  onPrevMonth: () => void;
+  onNextMonth: () => void;
 }
 
-function PlanItem({ plan, level = 0 }: PlanItemProps) {
+// 타임라인 헤더 컴포넌트
+function TimelineHeader({
+  startDate,
+  endDate,
+  onPrevMonth,
+  onNextMonth,
+}: TimelineProps) {
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const [todayPosition, setTodayPosition] = useState<number | null>(null);
+
+  // 월별 날짜 생성
+  const days = useMemo(() => {
+    return eachDayOfInterval({ start: startDate, end: endDate });
+  }, [startDate, endDate]);
+
+  // 월 그룹화
+  const months = useMemo(() => {
+    const result: { [key: string]: number } = {};
+    days.forEach((day: Date) => {
+      const monthKey = `${getYear(day)}-${getMonth(day)}`;
+      if (!result[monthKey]) {
+        result[monthKey] = 0;
+      }
+      result[monthKey]++;
+    });
+    return Object.entries(result).map(([key, count]) => {
+      const [year, month] = key.split("-").map(Number);
+      return {
+        year,
+        month,
+        label: format(new Date(year, month), "yyyy년 M월"),
+        days: count,
+      };
+    });
+  }, [days]);
+
+  // 오늘 날짜 위치 계산 (클라이언트 사이드에서만)
+  useEffect(() => {
+    if (timelineRef.current && days.some((day) => isToday(day))) {
+      const timelineWidth = timelineRef.current.clientWidth;
+      const today = new Date();
+      const position = calculatePosition(
+        today,
+        startDate,
+        endDate,
+        timelineWidth
+      );
+      setTodayPosition(48 + position); // 48px는 왼쪽 여백 (계획 제목 영역)
+    } else {
+      setTodayPosition(null);
+    }
+  }, [startDate, endDate, days]);
+
+  return (
+    <div className="mb-4">
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-2xl font-bold">나의 계획 로드맵</h2>
+        <div className="flex space-x-2">
+          <Button variant="outline" size="sm" onClick={onPrevMonth}>
+            ← 이전 달
+          </Button>
+          <Button variant="outline" size="sm" onClick={onNextMonth}>
+            다음 달 →
+          </Button>
+        </div>
+      </div>
+
+      <div className="relative border-b pb-2">
+        <div className="flex">
+          {/* 왼쪽 여백 (계획 제목 영역) */}
+          <div className="w-48 flex-shrink-0"></div>
+
+          {/* 월별 헤더 */}
+          <div className="flex-grow overflow-hidden" ref={timelineRef}>
+            <div className="flex">
+              {months.map((month, idx) => (
+                <div
+                  key={`${month.year}-${month.month}`}
+                  className="flex-grow text-center font-medium border-l first:border-l-0 text-sm py-1"
+                  style={{ flexBasis: `${(month.days / days.length) * 100}%` }}
+                >
+                  {month.label}
+                </div>
+              ))}
+            </div>
+
+            {/* 일별 눈금 (5일 간격) */}
+            <div className="flex relative h-6 mt-1">
+              {days.map((day, idx) => (
+                <div
+                  key={idx}
+                  className={`border-l flex-1 relative ${
+                    isToday(day)
+                      ? "border-red-500 border-l-2"
+                      : idx % 5 === 0
+                      ? "border-gray-300"
+                      : "border-gray-100"
+                  }`}
+                >
+                  {idx % 5 === 0 && (
+                    <span className="absolute -top-1 -left-2 text-[9px] text-gray-500">
+                      {format(day, "d")}
+                    </span>
+                  )}
+                  {isToday(day) && (
+                    <div className="absolute -top-7 -left-7 bg-red-500 text-white rounded-sm px-1 text-[10px]">
+                      오늘
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 오늘 날짜 세로선 */}
+        {todayPosition !== null && (
+          <div
+            className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
+            style={{ left: `${todayPosition}px` }}
+          ></div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface TimelinePlanItemProps {
+  plan: Plan;
+  level: number;
+  startDate: Date;
+  endDate: Date;
+  totalDays: number;
+}
+
+// 타임라인 계획 아이템 컴포넌트
+function TimelinePlanItem({
+  plan,
+  level,
+  startDate,
+  endDate,
+  totalDays,
+}: TimelinePlanItemProps) {
   const updatePlan = useStore((state) => state.updatePlan);
   const deletePlan = useStore((state) => state.deletePlan);
   const addSubPlan = useStore((state) => state.addSubPlan);
@@ -81,132 +260,91 @@ function PlanItem({ plan, level = 0 }: PlanItemProps) {
   const [isSubPlanDialogOpen, setIsSubPlanDialogOpen] = useState(false);
 
   const hasSubPlans = plan.subPlans && plan.subPlans.length > 0;
-  const timelineWidth = getTimelineWidth(plan.startDate, plan.endDate);
-  const timelineColor = getPlanTimelineColor(plan.startDate, plan.endDate);
-  const durationDays =
-    differenceInDays(new Date(plan.endDate), new Date(plan.startDate)) + 1;
+  const planStartDate = new Date(plan.startDate);
+  const planEndDate = new Date(plan.endDate);
+  const timelineColor = getPlanTimelineColor(
+    planStartDate,
+    planEndDate,
+    plan.status
+  );
 
-  const handleStatusChange = (status: PlanStatus) => {
-    updatePlan(plan.id, { status });
-  };
+  // 막대의 위치와 너비 계산
+  const startOffset = Math.max(0, differenceInDays(planStartDate, startDate));
+  const planDuration = differenceInDays(planEndDate, planStartDate) + 1;
+  const startPercentage = (startOffset / totalDays) * 100;
+  const widthPercentage = (planDuration / totalDays) * 100;
 
   return (
-    <div className="mb-3">
-      <Card
-        className={`border-l-4 ${
-          level === 0 ? "border-l-primary" : "border-l-gray-300"
-        }`}
-      >
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center">
-              {hasSubPlans && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="p-0 mr-2 h-6 w-6"
-                  onClick={() => setIsExpanded(!isExpanded)}
-                >
-                  {isExpanded ? (
-                    <ChevronDown size={16} />
-                  ) : (
-                    <ChevronRight size={16} />
-                  )}
-                </Button>
-              )}
-              <CardTitle className="text-md">{plan.name}</CardTitle>
-            </div>
-            <div className="flex space-x-1">
-              <span
-                className={`px-2 py-1 rounded-full text-xs ${getStatusColor(
-                  plan.status
-                )}`}
+    <div className={`mb-2 ${level > 0 ? "ml-6" : ""}`}>
+      <div className="flex items-center group">
+        {/* 계획 제목 영역 */}
+        <div className="w-48 flex-shrink-0 flex items-center pr-2">
+          <div className="flex items-center">
+            {hasSubPlans && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-0 h-6 w-6"
+                onClick={() => setIsExpanded(!isExpanded)}
               >
-                {plan.status}
-              </span>
-            </div>
+                {isExpanded ? (
+                  <ChevronDown size={14} />
+                ) : (
+                  <ChevronRight size={14} />
+                )}
+              </Button>
+            )}
+            <span className="text-sm font-medium truncate" title={plan.name}>
+              {plan.name}
+            </span>
           </div>
-        </CardHeader>
-        <CardContent className="pb-2">
-          {plan.description && (
-            <CardDescription className="mt-1 text-sm">
-              {plan.description}
-            </CardDescription>
-          )}
+        </div>
 
-          {/* 개선된 타임라인 바 UI */}
-          <div className="mt-3 mb-2">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center">
-                <Calendar size={14} className="mr-1 text-gray-500" />
-                <span className="text-xs text-gray-500">
-                  {format(new Date(plan.startDate), "yyyy년 MM월 dd일")}
+        {/* 타임라인 막대 영역 */}
+        <div className="flex-grow relative h-8">
+          <div
+            className={`absolute top-1 h-6 rounded ${timelineColor} border border-white shadow-sm`}
+            style={{
+              left: `${startPercentage}%`,
+              width: `${Math.max(widthPercentage, 1)}%`,
+            }}
+          >
+            {/* 진행률 표시 */}
+            <div
+              className="h-full bg-white bg-opacity-30 flex items-center justify-center text-xs text-white"
+              style={{ width: `${plan.progress}%` }}
+            ></div>
+
+            {/* 계획 정보 (넓이가 충분할 때만 표시) */}
+            {widthPercentage > 15 && (
+              <div className="absolute inset-0 flex items-center justify-between px-2 overflow-hidden">
+                <span className="text-white text-xs truncate font-medium">
+                  {plan.progress}%
+                </span>
+                <span
+                  className={`px-1 py-0.5 rounded text-[10px] ${getStatusColor(
+                    plan.status
+                  )}`}
+                >
+                  {plan.status}
                 </span>
               </div>
-              <span className="text-xs text-gray-700 font-medium">
-                {durationDays}일 간의 계획
-              </span>
-              <span className="text-xs text-gray-500">
-                {format(new Date(plan.endDate), "yyyy년 MM월 dd일")}
-              </span>
-            </div>
-            <div className="mt-2 h-3 bg-gray-100 rounded-full overflow-hidden relative">
-              <div
-                className={`h-full ${timelineColor} rounded-full transition-all duration-300`}
-                style={{
-                  width: `${plan.progress}%`,
-                }}
-              ></div>
-              {/* 오늘 날짜 표시 마커 */}
-              {(() => {
-                const start = new Date(plan.startDate).getTime();
-                const end = new Date(plan.endDate).getTime();
-                const today = new Date().getTime();
+            )}
+          </div>
 
-                // 오늘이 계획 기간 내에 있는지 확인
-                if (today >= start && today <= end) {
-                  // 오늘 날짜의 상대적인 위치 계산 (0-100%)
-                  const position = ((today - start) / (end - start)) * 100;
-                  return (
-                    <div
-                      className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
-                      style={{ left: `${position}%` }}
-                      title="오늘"
-                    ></div>
-                  );
-                }
-                return null;
-              })()}
-            </div>
-            <div className="flex justify-between mt-1">
-              <span className="text-xs text-gray-500">진행률</span>
-              <span className="text-xs font-medium">{plan.progress}% 완료</span>
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-between pt-2">
-          <div>
-            <select
-              className="text-xs border rounded p-1"
-              value={plan.status}
-              onChange={(e) => handleStatusChange(e.target.value as PlanStatus)}
-            >
-              {Object.values(PlanStatus).map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex space-x-2">
+          {/* 호버 시 표시되는 액션 버튼 */}
+          <div className="absolute right-2 top-1 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
             <Dialog
               open={isSubPlanDialogOpen}
               onOpenChange={setIsSubPlanDialogOpen}
             >
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Plus size={16} className="mr-1" />
-                  하위 계획
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-6 w-6 rounded-full bg-white"
+                >
+                  <Plus size={12} />
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -230,9 +368,12 @@ function PlanItem({ plan, level = 0 }: PlanItemProps) {
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Edit size={16} className="mr-1" />
-                  수정
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-6 w-6 rounded-full bg-white"
+                >
+                  <Edit size={12} />
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -256,21 +397,48 @@ function PlanItem({ plan, level = 0 }: PlanItemProps) {
             </Dialog>
 
             <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => deletePlan(plan.id)}
+              variant="outline"
+              size="icon"
+              className="h-6 w-6 rounded-full bg-white text-red-500"
+              onClick={() => {
+                if (confirm("정말로 이 계획을 삭제하시겠습니까?")) {
+                  deletePlan(plan.id);
+                }
+              }}
             >
-              <Trash size={16} className="mr-1" />
-              삭제
+              <Trash size={12} />
             </Button>
           </div>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
 
+      {/* 계획 설명 툴팁 (호버 시 표시) */}
+      <div className="group-hover:opacity-100 opacity-0 absolute bg-white p-2 rounded shadow-lg text-xs border z-10 max-w-xs">
+        <p className="font-medium">{plan.name}</p>
+        {plan.description && (
+          <p className="text-gray-600 mt-1">{plan.description}</p>
+        )}
+        <div className="mt-1 text-gray-500">
+          <p>
+            {format(planStartDate, "yyyy년 MM월 dd일")} ~{" "}
+            {format(planEndDate, "yyyy년 MM월 dd일")}
+          </p>
+          <p>진행률: {plan.progress}%</p>
+        </div>
+      </div>
+
+      {/* 하위 계획 목록 */}
       {isExpanded && hasSubPlans && (
-        <div className="ml-6 mt-2">
+        <div className="mt-1">
           {plan.subPlans?.map((subPlan) => (
-            <PlanItem key={subPlan.id} plan={subPlan} level={level + 1} />
+            <TimelinePlanItem
+              key={subPlan.id}
+              plan={subPlan}
+              level={level + 1}
+              startDate={startDate}
+              endDate={endDate}
+              totalDays={totalDays}
+            />
           ))}
         </div>
       )}
@@ -282,6 +450,33 @@ export function PlanList() {
   const plans = useStore((state) => state.plans);
   const addPlan = useStore((state) => state.addPlan);
 
+  // 타임라인 표시 범위 (3개월)
+  const [timelineStartDate, setTimelineStartDate] = useState(() => {
+    const now = new Date();
+    return startOfMonth(subMonths(now, 1));
+  });
+
+  const [timelineEndDate, setTimelineEndDate] = useState(() => {
+    const now = new Date();
+    return endOfMonth(addMonths(now, 1));
+  });
+
+  // 타임라인 날짜 범위 계산
+  const totalDays = useMemo(() => {
+    return differenceInDays(timelineEndDate, timelineStartDate) + 1;
+  }, [timelineStartDate, timelineEndDate]);
+
+  // 월 이동 핸들러
+  const handlePrevMonth = () => {
+    setTimelineStartDate((prev) => startOfMonth(subMonths(prev, 1)));
+    setTimelineEndDate((prev) => endOfMonth(subMonths(prev, 1)));
+  };
+
+  const handleNextMonth = () => {
+    setTimelineStartDate((prev) => startOfMonth(addMonths(prev, 1)));
+    setTimelineEndDate((prev) => endOfMonth(addMonths(prev, 1)));
+  };
+
   const topLevelPlans = useMemo(() => {
     return plans.filter((p) => !p.parentPlanId);
   }, [plans]);
@@ -289,9 +484,17 @@ export function PlanList() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">나의 계획 목록</h2>
+    <div className="relative">
+      {/* 타임라인 헤더 */}
+      <TimelineHeader
+        startDate={timelineStartDate}
+        endDate={timelineEndDate}
+        onPrevMonth={handlePrevMonth}
+        onNextMonth={handleNextMonth}
+      />
+
+      {/* 신규 계획 추가 버튼 */}
+      <div className="absolute top-0 right-0">
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -303,6 +506,10 @@ export function PlanList() {
               <DialogTitle>새 계획 생성</DialogTitle>
             </DialogHeader>
             <PlanForm
+              initialValues={{
+                startDate: new Date(),
+                endDate: new Date(),
+              }}
               onSubmit={(values) => {
                 addPlan(values);
                 setIsDialogOpen(false);
@@ -313,17 +520,27 @@ export function PlanList() {
         </Dialog>
       </div>
 
-      {topLevelPlans.length === 0 ? (
-        <div className="text-center p-8 border rounded-md bg-gray-50">
-          <p>계획이 없습니다. 새 계획을 생성해보세요!</p>
-        </div>
-      ) : (
-        <div>
-          {topLevelPlans.map((plan) => (
-            <PlanItem key={plan.id} plan={plan} />
-          ))}
-        </div>
-      )}
+      {/* 계획 목록 */}
+      <div className="mt-4">
+        {topLevelPlans.length === 0 ? (
+          <div className="text-center p-8 border rounded-md bg-gray-50">
+            <p>계획이 없습니다. 새 계획을 생성해보세요!</p>
+          </div>
+        ) : (
+          <div>
+            {topLevelPlans.map((plan) => (
+              <TimelinePlanItem
+                key={plan.id}
+                plan={plan}
+                level={0}
+                startDate={timelineStartDate}
+                endDate={timelineEndDate}
+                totalDays={totalDays}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
