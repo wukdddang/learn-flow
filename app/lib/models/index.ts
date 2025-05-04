@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import { PlanDuration, PlanStatus } from "../types";
+import { PlanStatus } from "../types";
 
 // 스키마 정의
 const studyLogSchema = new Schema(
@@ -14,10 +14,6 @@ const studyLogSchema = new Schema(
     },
     date: {
       type: Date,
-      required: true,
-    },
-    duration: {
-      type: Number,
       required: true,
     },
     planId: {
@@ -36,11 +32,6 @@ const planSchema = new Schema(
     },
     description: {
       type: String,
-    },
-    duration: {
-      type: String,
-      enum: Object.values(PlanDuration),
-      required: true,
     },
     startDate: {
       type: Date,

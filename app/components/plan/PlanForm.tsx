@@ -21,22 +21,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
-import { PlanDuration } from "@/app/lib/types";
 import { cn } from "@/lib/utils";
 import { format } from "@/app/lib/date-utils";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "최소 2글자 이상 입력해주세요" }),
   description: z.string().optional(),
-  duration: z.nativeEnum(PlanDuration),
   startDate: z.date(),
   endDate: z.date(),
 });
@@ -55,7 +46,6 @@ export function PlanForm({ initialValues, onSubmit, onCancel }: PlanFormProps) {
     defaultValues: {
       name: initialValues?.name || "",
       description: initialValues?.description || "",
-      duration: initialValues?.duration || PlanDuration.SHORT,
       startDate: initialValues?.startDate || new Date(),
       endDate: initialValues?.endDate || new Date(),
     },
@@ -90,35 +80,6 @@ export function PlanForm({ initialValues, onSubmit, onCancel }: PlanFormProps) {
                   {...field}
                 />
               </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="duration"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>기간 유형</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="기간 유형을 선택하세요" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value={PlanDuration.SHORT}>
-                    {PlanDuration.SHORT}
-                  </SelectItem>
-                  <SelectItem value={PlanDuration.MEDIUM}>
-                    {PlanDuration.MEDIUM}
-                  </SelectItem>
-                  <SelectItem value={PlanDuration.LONG}>
-                    {PlanDuration.LONG}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
               <FormMessage />
             </FormItem>
           )}

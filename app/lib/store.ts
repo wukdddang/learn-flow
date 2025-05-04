@@ -1,11 +1,5 @@
 import { create } from "zustand";
-import {
-  Plan,
-  PlanDuration,
-  PlanStatus,
-  StudyLog,
-  PomodoroSettings,
-} from "./types";
+import { Plan, PlanStatus, StudyLog, PomodoroSettings } from "./types";
 import { v4 as uuidv4 } from "uuid";
 
 interface StoreState {

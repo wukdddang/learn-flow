@@ -1,9 +1,3 @@
-export enum PlanDuration {
-  SHORT = "단기",
-  MEDIUM = "중기",
-  LONG = "장기",
-}
-
 export enum PlanStatus {
   NOT_STARTED = "미시작",
   IN_PROGRESS = "진행중",
@@ -15,7 +9,6 @@ export interface Plan {
   id: string;
   name: string;
   description?: string;
-  duration: PlanDuration;
   startDate: Date;
   endDate: Date;
   status: PlanStatus;
