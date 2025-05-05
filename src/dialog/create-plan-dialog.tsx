@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select";
 
 import { cn } from "@/lib/utils";
-import { format } from "@/app/lib/date-utils";
+import { format } from "@/src/lib/date-utils";
 
 // 계획 색상 목록
 export const planColors = [

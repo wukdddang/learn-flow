@@ -14,10 +14,10 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { PlanForm } from "../plan/plan-form";
-import { Plan, PlanStatus } from "@/app/lib/types";
-import { useStore } from "@/app/lib/store";
-import { format, differenceInDays } from "@/app/lib/date-utils";
+import { PlanForm } from "../../dialog/create-plan-dialog";
+import { Plan, PlanStatus } from "@/src/lib/types";
+import { useStore } from "@/src/lib/store";
+import { format, differenceInDays } from "@/src/lib/date-utils";
 
 // 계획 상태에 따른 색상 지정 함수
 const getStatusColor = (status: PlanStatus) => {

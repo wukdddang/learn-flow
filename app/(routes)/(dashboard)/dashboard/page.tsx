@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { StudyLogList } from "@/app/components/study/study-log-list";
-import { PomodoroTimer } from "@/app/components/pomodoro/pomodoro-timer";
-import { StatsDashboard } from "@/app/components/stats/stats-dashboard";
-import { TimelinePlanner } from "@/app/components/timeline/timeline-planner";
+import { StudyLogList } from "@/src/components/study/study-log-list";
+import { PomodoroTimer } from "@/src/components/pomodoro/pomodoro-timer";
+import { StatsDashboard } from "@/src/components/stats/stats-dashboard";
+import { TimelinePlanner } from "@/src/components/timeline/timeline-planner";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("timeline");

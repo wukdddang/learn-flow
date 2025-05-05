@@ -18,8 +18,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { StudyLogForm } from "./study-log-form";
-import { useStore } from "@/app/lib/store";
-import { format } from "@/app/lib/date-utils";
+import { useStore } from "@/src/lib/store";
+import { format } from "@/src/lib/date-utils";
 
 export function StudyLogList() {
   // 각 상태를 개별적으로 선택하여 불필요한 리렌더링 방지

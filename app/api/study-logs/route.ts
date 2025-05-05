@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/app/lib/db";
-import { StudyLog } from "@/app/lib/models";
+import { connectToDatabase } from "@/src/lib/db";
+import { StudyLog } from "@/src/lib/models";
 
 // 모든 공부 기록 가져오기
 export async function GET() {

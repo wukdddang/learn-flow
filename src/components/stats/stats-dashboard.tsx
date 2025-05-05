@@ -17,14 +17,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useStore } from "@/app/lib/store";
-import { PlanStatus, Stats } from "@/app/lib/types";
+import { useStore } from "@/src/lib/store";
+import { PlanStatus, Stats } from "@/src/lib/types";
 import {
   format,
   differenceInDays,
   startOfWeek,
   addDays,
-} from "@/app/lib/date-utils";
+} from "@/src/lib/date-utils";
 
 export function StatsDashboard() {
   const plans = useStore((state) => state.plans);

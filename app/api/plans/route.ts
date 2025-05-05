@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/app/lib/db";
-import { Plan } from "@/app/lib/models";
+import { connectToDatabase } from "@/src/lib/db";
+import { Plan } from "@/src/lib/models";
 
 // 모든 계획 가져오기
 export async function GET() {

@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { connectToDatabase } from "@/app/lib/db";
-import { Plan, StudyLog } from "@/app/lib/models";
-import { PlanStatus } from "@/app/lib/types";
+import { connectToDatabase } from "@/src/lib/db";
+import { Plan, StudyLog } from "@/src/lib/models";
+import { PlanStatus } from "@/src/lib/types";
 import {
   format,
   startOfWeek,
   addDays,
   differenceInDays,
-} from "@/app/lib/date-utils";
+} from "@/src/lib/date-utils";
 
 // 통계 데이터 가져오기
 export async function GET() {

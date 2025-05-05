@@ -28,10 +28,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { Plan } from "@/app/lib/types";
+import { Plan } from "@/src/lib/types";
 import { cn } from "@/lib/utils";
-import { useStore } from "@/app/lib/store";
-import { format } from "@/app/lib/date-utils";
+import { useStore } from "@/src/lib/store";
+import { format } from "@/src/lib/date-utils";
 
 const formSchema = z.object({
   title: z.string().min(2, { message: "최소 2글자 이상 입력해주세요" }),

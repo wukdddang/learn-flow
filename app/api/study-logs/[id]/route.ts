@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/app/lib/db";
-import { StudyLog } from "@/app/lib/models";
+import { connectToDatabase } from "@/src/lib/db";
+import { StudyLog } from "@/src/lib/models";
 
 interface Params {
   params: {
