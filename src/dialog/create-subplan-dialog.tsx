@@ -35,6 +35,18 @@ export function CreateSubPlanDialog({
     setError(null);
 
     try {
+      // 날짜 범위 검증
+      const startDate = new Date(values.startDate);
+      const endDate = new Date(values.endDate);
+      const parentStartDate = new Date(parentPlan.startDate);
+      const parentEndDate = new Date(parentPlan.endDate);
+
+      if (startDate < parentStartDate || endDate > parentEndDate) {
+        throw new Error(
+          "하위 계획의 기간은 상위 계획의 기간을 벗어날 수 없습니다."
+        );
+      }
+
       // Plan 인터페이스에 맞게 데이터 구성 및 parentPlanId 추가
       const planData = {
         ...values,
@@ -83,6 +95,10 @@ export function CreateSubPlanDialog({
     }
   };
 
+  // 부모 계획의 시작일과 종료일
+  const parentStartDate = new Date(parentPlan.startDate);
+  const parentEndDate = new Date(parentPlan.endDate);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -93,6 +109,12 @@ export function CreateSubPlanDialog({
           <span className="font-medium">상위 계획: </span>
           <span className="text-blue-600">{parentPlan.name}</span>
         </div>
+        <div className="mb-4 text-sm text-gray-500">
+          <span>
+            하위 계획은 상위 계획의 기간({formatDate(parentStartDate)} ~{" "}
+            {formatDate(parentEndDate)}) 내에서만 설정할 수 있습니다.
+          </span>
+        </div>
         {error && (
           <div className="bg-red-50 text-red-500 p-3 rounded-md mb-4">
             {error}
@@ -100,12 +122,14 @@ export function CreateSubPlanDialog({
         )}
         <PlanForm
           initialValues={{
-            startDate: new Date(parentPlan.startDate),
-            endDate: new Date(parentPlan.endDate),
+            startDate: parentStartDate,
+            endDate: parentEndDate,
             color: parentPlan.color,
           }}
           onSubmit={handleSubmit}
           onCancel={() => onOpenChange(false)}
+          minDate={parentStartDate}
+          maxDate={parentEndDate}
         />
         {isSubmitting && (
           <div className="absolute inset-0 bg-black/5 flex items-center justify-center rounded-lg">
@@ -116,3 +140,12 @@ export function CreateSubPlanDialog({
     </Dialog>
   );
 }
+
+// 날짜 포맷 함수
+const formatDate = (date: Date) => {
+  return date.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};

@@ -69,9 +69,17 @@ interface PlanFormProps {
   initialValues?: Partial<FormValues>;
   onSubmit: (values: FormValues) => void;
   onCancel: () => void;
+  minDate?: Date;
+  maxDate?: Date;
 }
 
-export function PlanForm({ initialValues, onSubmit, onCancel }: PlanFormProps) {
+export function PlanForm({
+  initialValues,
+  onSubmit,
+  onCancel,
+  minDate,
+  maxDate,
+}: PlanFormProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -149,6 +157,8 @@ export function PlanForm({ initialValues, onSubmit, onCancel }: PlanFormProps) {
                       selected={field.value}
                       onSelect={field.onChange}
                       initialFocus
+                      fromDate={minDate}
+                      toDate={maxDate}
                     />
                   </PopoverContent>
                 </Popover>
@@ -188,6 +198,8 @@ export function PlanForm({ initialValues, onSubmit, onCancel }: PlanFormProps) {
                       selected={field.value}
                       onSelect={field.onChange}
                       initialFocus
+                      fromDate={minDate}
+                      toDate={maxDate}
                     />
                   </PopoverContent>
                 </Popover>
