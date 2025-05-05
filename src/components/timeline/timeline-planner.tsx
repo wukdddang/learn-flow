@@ -286,6 +286,9 @@ export function TimelinePlanner() {
     null
   );
   const [isSubPlanDialogOpen, setIsSubPlanDialogOpen] = useState(false);
+  const [expandedPlans, setExpandedPlans] = useState<Record<string, boolean>>(
+    {}
+  );
 
   // 데이터베이스에서 계획 데이터 가져오기
   const fetchPlans = async () => {
@@ -365,6 +368,14 @@ export function TimelinePlanner() {
       console.error("계획 삭제 오류:", err);
       setError("계획을 삭제하는 중 오류가 발생했습니다.");
     }
+  };
+
+  // 최상위 계획 토글 핸들러
+  const togglePlanExpansion = (planId: string) => {
+    setExpandedPlans((prev) => ({
+      ...prev,
+      [planId]: !prev[planId],
+    }));
   };
 
   // 컴포넌트 마운트 시 데이터 가져오기
@@ -592,38 +603,11 @@ export function TimelinePlanner() {
           startPosition * 300;
       }
 
-      // 하위 계획은 같은 부모를 가진 계획끼리 행 겹침 처리
-      let rowIndex = 0;
-      let foundRow = false;
-
-      while (!foundRow) {
-        if (!subPlanRows[rowIndex]) {
-          subPlanRows[rowIndex] = [];
-          foundRow = true;
-        } else {
-          // 같은 행의 다른 하위 계획과 겹치는지 확인
-          const hasOverlap = subPlanRows[rowIndex].some((item) => {
-            // 같은 부모의 하위 계획이 아니면 겹침 체크 안 함
-            if (item.parentId !== plan.parentPlanId) return false;
-
-            const itemLeft = item.left;
-            const itemRight = item.left + item.width;
-            const eventLeft = leftPos;
-            const eventRight = leftPos + width;
-
-            return (
-              (eventLeft >= itemLeft && eventLeft <= itemRight) ||
-              (eventRight >= itemLeft && eventRight <= itemRight) ||
-              (eventLeft <= itemLeft && eventRight >= itemRight)
-            );
-          });
-
-          if (!hasOverlap) {
-            foundRow = true;
-          } else {
-            rowIndex++;
-          }
-        }
+      // 각 하위 계획마다 별도의 행에 배치 (기존 겹침 체크 로직 제거)
+      // 정확한 부모 계획 정보를 유지하면서 각 계획에 고유 행 부여
+      const rowIndex = subPlanRows.length;
+      if (!subPlanRows[rowIndex]) {
+        subPlanRows[rowIndex] = [];
       }
 
       // 결정된 행에 이벤트 추가
@@ -726,7 +710,10 @@ export function TimelinePlanner() {
             </Button>
           </div>
         ) : (
-          <div style={{ minWidth: `${timelineWidth}px` }} className="relative">
+          <div
+            style={{ minWidth: `${timelineWidth}px` }}
+            className="relative h-full"
+          >
             {/* 현재 날짜 표시 (수직선) */}
             {(() => {
               const today = new Date();
@@ -824,114 +811,223 @@ export function TimelinePlanner() {
             </div>
 
             {/* 계획 타임라인 */}
-            <div className="mt-4 relative">
+            <div className="mt-4 relative h-[calc(100%-140px)]">
               {plans.length === 0 ? (
-                <div className="text-center p-8 border rounded-md bg-gray-50">
+                <div className="text-center p-8 border rounded-md bg-gray-50 h-full">
                   <p>계획이 없습니다. 새 계획을 생성해보세요!</p>
                 </div>
               ) : (
-                <div className="relative min-h-[100px] border bg-gray-50 rounded-md p-2">
+                <div className="relative h-full overflow-y-auto border bg-gray-50 rounded-md p-2">
                   {/* 최상위 계획 렌더링 */}
-                  {arrangedPlans.topLevelPlans.map((item) => {
+                  {(() => {
+                    // 동적 위치 계산을 위한 변수들
                     const rowHeight = 40; // 각 행의 높이
-                    const rowSpacing = 12; // 최상위 계획 간 간격 (더 넓게)
-                    const topOffset = item.row * (rowHeight + rowSpacing) * 2; // 최상위 계획 간 간격 2배
+                    const rowSpacing = 12; // 최상위 계획 간 기본 간격
+                    const subRowHeight = 34; // 하위 계획 행 높이
+                    const subRowSpacing = 4; // 하위 계획 간 간격
 
+                    // 모든 최상위 계획의 위치 정보 계산
+                    let currentOffset = 0;
+                    const planPositions = arrangedPlans.topLevelPlans.map(
+                      (item, index) => {
+                        // 현재 최상위 계획의 상단 위치
+                        const topOffset = currentOffset;
+
+                        // 하위 계획 필터링
+                        const subPlansForParent = arrangedPlans.subPlans.filter(
+                          (subItem) => subItem.parentId === item.plan.id
+                        );
+
+                        // 하위 계획의 행 개수 (가장 많은 행을 차지하는 하위 계획)
+                        const maxSubPlanRow =
+                          subPlansForParent.length > 0
+                            ? Math.max(
+                                ...subPlansForParent.map(
+                                  (subItem) => subItem.row
+                                )
+                              ) + 1
+                            : 0;
+
+                        // 하위 계획의 전체 높이 (확장되었을 때만 고려)
+                        const subPlansHeight =
+                          expandedPlans[item.plan.id] && maxSubPlanRow > 0
+                            ? maxSubPlanRow * (subRowHeight + subRowSpacing) + 8 // 추가 여백
+                            : 0;
+
+                        // 다음 최상위 계획의 시작 위치 업데이트
+                        currentOffset =
+                          topOffset + rowHeight + rowSpacing + subPlansHeight;
+
+                        return {
+                          ...item,
+                          topOffset,
+                          subPlansHeight,
+                          maxSubPlanRow,
+                        };
+                      }
+                    );
+
+                    // 타임라인의 최소 높이 계산 (마지막 계획 + 여백)
+                    const timelineMinHeight =
+                      planPositions.length > 0
+                        ? planPositions[planPositions.length - 1].topOffset +
+                          rowHeight +
+                          40
+                        : 100;
+
+                    // 계산된 위치 정보로 최상위 계획 및 하위 계획 렌더링
                     return (
                       <div
-                        key={item.plan.id}
-                        className="relative"
                         style={{
-                          height: `${rowHeight}px`,
-                          marginTop: item.row > 0 ? `${rowSpacing}px` : "0",
+                          minHeight: `${timelineMinHeight}px`,
+                          position: "relative",
                         }}
                       >
-                        <TimelineItem
-                          plan={item.plan}
-                          allYearQuarters={allYearQuarters}
-                          onAddSubPlan={handleAddSubPlan}
-                          isParent={true}
-                        />
+                        {planPositions.map((item) => {
+                          const isExpanded = expandedPlans[item.plan.id];
 
-                        {/* 해당 최상위 계획의 하위 계획 렌더링 */}
-                        {arrangedPlans.subPlans
-                          .filter(
-                            (subItem) => subItem.parentId === item.plan.id
-                          )
-                          .map((subItem, subIndex) => {
-                            const subRowHeight = 34; // 하위 계획 행 높이
-                            const subRowSpacing = 4; // 하위 계획 간 간격
-                            const subTopOffset =
-                              topOffset +
-                              rowHeight +
-                              4 +
-                              subItem.row * (subRowHeight + subRowSpacing);
-
-                            return (
-                              <Popover key={`sub-${subItem.plan.id}`}>
-                                <PopoverTrigger asChild>
-                                  <div
-                                    className="absolute rounded-lg border px-3 py-1 shadow-sm cursor-pointer hover:brightness-95 transition-all bg-opacity-80"
-                                    style={{
-                                      left: `${subItem.left}px`,
-                                      width: `${subItem.width}px`,
-                                      top: `${subTopOffset}px`,
-                                      height: `${subRowHeight - 8}px`,
-                                      backgroundColor:
-                                        item.plan.color || "#e5e7eb",
-                                    }}
-                                    onClick={() => {
-                                      setSelectedPlan(subItem.plan);
-                                      setIsEditDialogOpen(true);
-                                    }}
-                                  >
-                                    <div className="text-xs font-medium truncate">
-                                      {subItem.plan.name}
-                                    </div>
-                                  </div>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-72 p-4">
-                                  <div className="space-y-2">
-                                    <div className="flex justify-between items-start">
-                                      <h3 className="font-bold text-lg">
-                                        {subItem.plan.name}
-                                      </h3>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 w-8 p-0"
-                                        onClick={() => {
-                                          setSelectedPlan(subItem.plan);
-                                          setIsEditDialogOpen(true);
-                                        }}
-                                      >
-                                        <Edit2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                    {subItem.plan.description && (
-                                      <p className="text-sm text-gray-600">
-                                        {subItem.plan.description}
-                                      </p>
-                                    )}
-                                    <div className="text-xs space-y-1">
-                                      <div className="flex items-center mt-1">
-                                        <span className="text-gray-500 mr-1.5">
-                                          상위 계획:
-                                        </span>
-                                        <span className="text-blue-600">
-                                          {item.plan.name}
-                                        </span>
-                                      </div>
-                                      {/* 기존 날짜, 상태 등 정보들 표시 */}
-                                    </div>
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
+                          // 하위 계획 필터링
+                          const subPlansForParent =
+                            arrangedPlans.subPlans.filter(
+                              (subItem) => subItem.parentId === item.plan.id
                             );
-                          })}
+
+                          // 토글 아이콘 표시 여부
+                          const hasSubPlans = subPlansForParent.length > 0;
+
+                          return (
+                            <div
+                              key={item.plan.id}
+                              className="relative"
+                              style={{
+                                position: "absolute",
+                                top: `${item.topOffset}px`,
+                                left: 0,
+                                right: 0,
+                                height: `${rowHeight}px`,
+                              }}
+                            >
+                              {/* 최상위 계획 항목 */}
+                              <div
+                                className={`absolute rounded-lg border px-3 py-1 shadow-sm cursor-pointer hover:brightness-95 transition-all border-2 ${
+                                  item.plan.status === PlanStatus.COMPLETED
+                                    ? "bg-green-300 border-green-500"
+                                    : item.plan.status ===
+                                      PlanStatus.IN_PROGRESS
+                                    ? "bg-blue-300 border-blue-500"
+                                    : item.plan.status === PlanStatus.CANCELED
+                                    ? "bg-red-300 border-red-500"
+                                    : "bg-gray-300 border-gray-500"
+                                }`}
+                                style={{
+                                  left: `${item.left}px`,
+                                  width: `${Math.max(item.width, 10)}px`,
+                                  top: "4px",
+                                  height: "32px",
+                                  zIndex: 10,
+                                }}
+                                onClick={() =>
+                                  hasSubPlans &&
+                                  togglePlanExpansion(item.plan.id)
+                                }
+                              >
+                                <div className="flex items-center justify-between h-full">
+                                  <div className="flex items-center">
+                                    {hasSubPlans && (
+                                      <div className="mr-1">
+                                        {isExpanded ? (
+                                          <ChevronDown size={14} />
+                                        ) : (
+                                          <ChevronRight size={14} />
+                                        )}
+                                      </div>
+                                    )}
+                                    <div className="text-xs font-medium truncate">
+                                      {item.plan.name}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center">
+                                    <button
+                                      className="ml-1 p-0.5 bg-white rounded-full hover:bg-gray-100 transition-colors"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAddSubPlan(item.plan);
+                                      }}
+                                      title="하위 계획 추가"
+                                    >
+                                      <Plus
+                                        size={14}
+                                        className="text-blue-500"
+                                      />
+                                    </button>
+                                    <button
+                                      className="ml-1 p-0.5 bg-white rounded-full hover:bg-gray-100 transition-colors"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedPlan(item.plan);
+                                        setIsEditDialogOpen(true);
+                                      }}
+                                      title="계획 편집"
+                                    >
+                                      <Edit2
+                                        size={14}
+                                        className="text-gray-500"
+                                      />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* 하위 계획 렌더링 - 확장된 경우에만 */}
+                              {isExpanded &&
+                                subPlansForParent.map((subItem, subIndex) => {
+                                  const subRowHeight = 34; // 하위 계획 행 높이
+                                  const subRowSpacing = 4; // 하위 계획 간 간격
+                                  const subTopOffset =
+                                    rowHeight +
+                                    4 +
+                                    subItem.row *
+                                      (subRowHeight + subRowSpacing);
+
+                                  return (
+                                    <div
+                                      key={`sub-${subItem.plan.id}`}
+                                      className="absolute rounded-lg border px-3 py-1 shadow-sm cursor-pointer hover:brightness-95 transition-all bg-opacity-80"
+                                      style={{
+                                        left: `${subItem.left}px`,
+                                        width: `${subItem.width}px`,
+                                        top: `${subTopOffset}px`,
+                                        height: `${subRowHeight - 8}px`,
+                                        backgroundColor:
+                                          subItem.plan.status ===
+                                          PlanStatus.COMPLETED
+                                            ? "rgb(187, 247, 208)"
+                                            : subItem.plan.status ===
+                                              PlanStatus.IN_PROGRESS
+                                            ? "rgb(191, 219, 254)"
+                                            : subItem.plan.status ===
+                                              PlanStatus.CANCELED
+                                            ? "rgb(254, 202, 202)"
+                                            : "rgb(229, 231, 235)",
+                                        zIndex: 5,
+                                      }}
+                                      onClick={() => {
+                                        setSelectedPlan(subItem.plan);
+                                        setIsEditDialogOpen(true);
+                                      }}
+                                    >
+                                      <div className="text-xs font-medium truncate">
+                                        {subItem.plan.name}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          );
+                        })}
                       </div>
                     );
-                  })}
+                  })()}
                 </div>
               )}
             </div>
