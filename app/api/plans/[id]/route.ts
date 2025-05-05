@@ -32,15 +32,35 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 }
 
-// 계획 업데이트
-export async function PUT(request: NextRequest, { params }: Params) {
+// 계획 수정
+export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const { id } = params;
     const body = await request.json();
-
     await connectToDatabase();
 
-    const updatedPlan = await Plan.findByIdAndUpdate(id, body, { new: true });
+    // 수정할 필드 지정
+    const updateData = {
+      name: body.name,
+      description: body.description,
+      startDate: body.startDate,
+      endDate: body.endDate,
+      status: body.status,
+      progress: body.progress,
+      color: body.color,
+    };
+
+    // undefined 값 제거
+    Object.keys(updateData).forEach(
+      (key) =>
+        updateData[key as keyof typeof updateData] === undefined &&
+        delete updateData[key as keyof typeof updateData]
+    );
+
+    const updatedPlan = await Plan.findByIdAndUpdate(params.id, updateData, {
+      new: true, // 업데이트된 문서 반환
+      runValidators: true, // 모델의 유효성 검사 실행
+    });
+
     if (!updatedPlan) {
       return NextResponse.json(
         { error: "계획을 찾을 수 없습니다." },
@@ -50,9 +70,9 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
     return NextResponse.json(updatedPlan);
   } catch (error) {
-    console.error("계획 업데이트 오류:", error);
+    console.error("계획 수정 오류:", error);
     return NextResponse.json(
-      { error: "계획을 업데이트하는 중 오류가 발생했습니다." },
+      { error: "계획을 수정하는 중 오류가 발생했습니다." },
       { status: 500 }
     );
   }

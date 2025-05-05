@@ -17,13 +17,13 @@ import { useStore } from "@/src/lib/store";
 interface EditPlanProps {
   plan: Plan;
   onClose: () => void;
+  onUpdate: (id: string, updatedData: Partial<Plan>) => void;
+  onDelete: (id: string) => void;
 }
 
-export function EditPlan({ plan, onClose }: EditPlanProps) {
+export function EditPlan({ plan, onClose, onUpdate, onDelete }: EditPlanProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const updatePlan = useStore((state) => state.updatePlan);
-  const deletePlan = useStore((state) => state.deletePlan);
 
   const handleClose = () => {
     setIsOpen(false);
@@ -31,7 +31,7 @@ export function EditPlan({ plan, onClose }: EditPlanProps) {
   };
 
   const handleSubmit = (values: any) => {
-    updatePlan(plan.id, {
+    onUpdate(plan.id, {
       ...values,
       status: plan.status,
       progress: plan.progress,
@@ -40,7 +40,7 @@ export function EditPlan({ plan, onClose }: EditPlanProps) {
   };
 
   const handleDelete = () => {
-    deletePlan(plan.id);
+    onDelete(plan.id);
     setIsDeleteDialogOpen(false);
     handleClose();
   };

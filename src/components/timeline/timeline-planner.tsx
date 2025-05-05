@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Calendar,
   Loader2,
+  Edit2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { PlanForm } from "../../dialog/create-plan-dialog";
+import { EditPlan } from "../../dialog/edit-plan-dialog";
 import { Plan, PlanStatus } from "@/src/lib/types";
 import { format, differenceInDays } from "@/src/lib/date-utils";
 
@@ -232,6 +234,8 @@ export function TimelinePlanner() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // 데이터베이스에서 계획 데이터 가져오기
   const fetchPlans = async () => {
@@ -244,7 +248,12 @@ export function TimelinePlanner() {
       }
 
       const data = await response.json();
-      setPlans(data);
+      // MongoDB의 _id 값을 id로 매핑
+      const plansWithId = data.map((plan: any) => ({
+        ...plan,
+        id: plan._id || plan.id, // _id가 있으면 사용하고, 없으면 기존 id 사용
+      }));
+      setPlans(plansWithId);
       setError(null);
     } catch (err) {
       console.error("계획 가져오기 오류:", err);
@@ -283,10 +292,64 @@ export function TimelinePlanner() {
       }
 
       const newPlan = await response.json();
-      setPlans((prev) => [...prev, newPlan]);
+      // MongoDB의 _id 값을 id로 매핑
+      const planWithId = {
+        ...newPlan,
+        id: newPlan._id || newPlan.id, // _id가 있으면 사용하고, 없으면 기존 id 사용
+      };
+      setPlans((prev) => [...prev, planWithId]);
     } catch (err) {
       console.error("계획 추가 오류:", err);
       setError("계획을 추가하는 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 계획 수정
+  const updatePlan = async (id: string, updatedData: Partial<Plan>) => {
+    try {
+      const response = await fetch(`/api/plans/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updatedData),
+      });
+
+      if (!response.ok) {
+        throw new Error("계획을 수정하는데 실패했습니다.");
+      }
+
+      const updatedPlan = await response.json();
+      // MongoDB의 _id 값을 id로 매핑
+      const planWithId = {
+        ...updatedPlan,
+        id: updatedPlan._id || updatedPlan.id,
+      };
+
+      setPlans((prev) =>
+        prev.map((plan) => (plan.id === id ? planWithId : plan))
+      );
+    } catch (err) {
+      console.error("계획 수정 오류:", err);
+      setError("계획을 수정하는 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 계획 삭제
+  const deletePlan = async (id: string) => {
+    try {
+      const response = await fetch(`/api/plans/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("계획을 삭제하는데 실패했습니다.");
+      }
+
+      setPlans((prev) => prev.filter((plan) => plan.id !== id));
+    } catch (err) {
+      console.error("계획 삭제 오류:", err);
+      setError("계획을 삭제하는 중 오류가 발생했습니다.");
     }
   };
 
@@ -491,6 +554,18 @@ export function TimelinePlanner() {
         </div>
       </div>
 
+      {isEditDialogOpen && selectedPlan && (
+        <EditPlan
+          plan={selectedPlan}
+          onClose={() => {
+            setIsEditDialogOpen(false);
+            setSelectedPlan(null);
+          }}
+          onUpdate={updatePlan}
+          onDelete={deletePlan}
+        />
+      )}
+
       {/* 스크롤 컨테이너 */}
       <div
         className="flex-grow overflow-auto"
@@ -663,9 +738,22 @@ export function TimelinePlanner() {
                         </PopoverTrigger>
                         <PopoverContent className="w-72 p-4">
                           <div className="space-y-2">
-                            <h3 className="font-bold text-lg">
-                              {item.plan.name}
-                            </h3>
+                            <div className="flex justify-between items-start">
+                              <h3 className="font-bold text-lg">
+                                {item.plan.name}
+                              </h3>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => {
+                                  setSelectedPlan(item.plan);
+                                  setIsEditDialogOpen(true);
+                                }}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                             {item.plan.description && (
                               <p className="text-sm text-gray-600">
                                 {item.plan.description}
