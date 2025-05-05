@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
-import { useStore } from "@/app/lib/store";
+import { useStore } from "@/src/lib/store";
 import {
   Form,
   FormControl,
