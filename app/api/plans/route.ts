@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/src/lib/db";
 import { Plan } from "@/src/lib/models";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth/auth-options";
 
 // 모든 계획 가져오기 (사용자별)
 export async function GET() {

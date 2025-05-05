@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Edit2, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-import { PlanForm } from "./create-plan-dialog";
+import { FormValues, PlanForm } from "./create-plan-dialog";
 import { Plan } from "@/src/lib/types";
 
 interface EditPlanProps {
@@ -34,7 +34,7 @@ export function EditPlan({
     onOpenChange(false);
   };
 
-  const handleSubmit = (values: any) => {
+  const handleSubmit = (values: FormValues) => {
     onUpdate(plan.id, {
       ...values,
       status: plan.status,

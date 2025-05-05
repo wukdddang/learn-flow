@@ -43,9 +43,14 @@ export default function RegisterPage() {
 
       toast.success("회원가입이 완료되었습니다! 로그인해주세요.");
       router.push("/login");
-    } catch (error: any) {
-      console.error("회원가입 오류:", error);
-      toast.error(error.message || "회원가입 중 오류가 발생했습니다");
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error("회원가입 오류:", error.message);
+        toast.error(error.message || "회원가입 중 오류가 발생했습니다");
+      } else {
+        console.error("회원가입 오류:", error);
+        toast.error("회원가입 중 오류가 발생했습니다");
+      }
     } finally {
       setIsLoading(false);
     }

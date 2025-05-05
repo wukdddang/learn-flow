@@ -3,15 +3,15 @@ import { connectToDatabase } from "@/src/lib/db";
 import { StudyLog } from "@/src/lib/models";
 
 interface Params {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 // 특정 공부 기록 가져오기
 export async function GET(request: NextRequest, { params }: Params) {
   try {
-    const { id } = params;
+    const { id } = await params;
     await connectToDatabase();
 
     const studyLog = await StudyLog.findById(id);
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 // 공부 기록 업데이트
 export async function PUT(request: NextRequest, { params }: Params) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
 
     await connectToDatabase();
@@ -63,7 +63,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
 // 공부 기록 삭제
 export async function DELETE(request: NextRequest, { params }: Params) {
   try {
-    const { id } = params;
+    const { id } = await params;
     await connectToDatabase();
 
     const deletedStudyLog = await StudyLog.findByIdAndDelete(id);

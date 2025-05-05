@@ -1,280 +1,18 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import {
-  Plus,
-  ChevronRight,
-  ChevronDown,
-  Calendar,
-  Loader2,
-  Edit2,
-} from "lucide-react";
+import { Plus, ChevronRight, ChevronDown, Edit2, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/ui/popover";
+
 import { CreatePlanDialog } from "../../dialog/create-plan-dialog";
 import { CreateSubPlanDialog } from "../../dialog/create-subplan-dialog";
 import { EditPlan } from "../../dialog/edit-plan-dialog";
 import { Plan, PlanStatus } from "@/src/lib/types";
-import { format, differenceInDays } from "@/src/lib/date-utils";
 
-// 계획 상태에 따른 색상 지정 함수
-const getStatusColor = (status: PlanStatus) => {
-  switch (status) {
-    case PlanStatus.NOT_STARTED:
-      return "bg-gray-200 text-gray-800";
-    case PlanStatus.IN_PROGRESS:
-      return "bg-blue-100 text-blue-800 border-blue-400";
-    case PlanStatus.COMPLETED:
-      return "bg-green-100 text-green-800 border-green-400";
-    case PlanStatus.CANCELED:
-      return "bg-red-100 text-red-800 border-red-400";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
-};
-
-// 날짜 포맷 함수
-const formatDate = (date: Date) => {
-  return format(date, "yyyy년 MM월 dd일");
-};
-
-// 타임라인 계획 아이템 컴포넌트
-const TimelineItem = ({
-  plan,
-  allYearQuarters,
-  onAddSubPlan,
-  isParent = false,
-}: {
-  plan: Plan;
-  allYearQuarters: any[];
-  onAddSubPlan?: (parentPlan: Plan) => void;
-  isParent?: boolean;
-}) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const startDate = new Date(plan.startDate);
-  const endDate = new Date(plan.endDate);
-
-  // 시작 분기와 종료 분기 찾기
-  const startQuarter = allYearQuarters.find((q) => {
-    const quarterStartMonth = q.months[0];
-    const quarterEndMonth = q.months[2];
-    const year = q.year;
-
-    return (
-      startDate.getFullYear() === year &&
-      startDate.getMonth() + 1 >= quarterStartMonth &&
-      startDate.getMonth() + 1 <= quarterEndMonth
-    );
-  });
-
-  const endQuarter = allYearQuarters.find((q) => {
-    const quarterStartMonth = q.months[0];
-    const quarterEndMonth = q.months[2];
-    const year = q.year;
-
-    return (
-      endDate.getFullYear() === year &&
-      endDate.getMonth() + 1 >= quarterStartMonth &&
-      endDate.getMonth() + 1 <= quarterEndMonth
-    );
-  });
-
-  if (!startQuarter || !endQuarter) return null;
-
-  // 시작 분기와 종료 분기의 인덱스 찾기
-  const startQuarterIndex = allYearQuarters.findIndex(
-    (q) => q.year === startQuarter.year && q.id === startQuarter.id
-  );
-
-  const endQuarterIndex = allYearQuarters.findIndex(
-    (q) => q.year === endQuarter.year && q.id === endQuarter.id
-  );
-
-  // 분기 내 위치 계산 (0-1 사이의 값)
-  const startMonthIndex = startQuarter.months.indexOf(startDate.getMonth() + 1);
-
-  // 월 내 일 수 계산
-  const getDaysInMonth = (year: number, month: number) => {
-    return new Date(year, month, 0).getDate();
-  };
-
-  const startMonthDays = getDaysInMonth(
-    startDate.getFullYear(),
-    startDate.getMonth() + 1
-  );
-  const endMonthDays = getDaysInMonth(
-    endDate.getFullYear(),
-    endDate.getMonth() + 1
-  );
-
-  // 날짜 위치 계산 (0.33px * 일수)
-  const dayWidth = 0.33; // 1일당 0.33px
-
-  // 월 간격 크기 (각 월의 최대 일수 * dayWidth)
-  const monthWidth = 30 * dayWidth; // 고정된 월 크기
-
-  // 시작일 위치 (월 내 상대적 위치)
-  const startDayPosition = (startDate.getDate() - 1) * dayWidth;
-  const endDayPosition = endDate.getDate() * dayWidth;
-
-  // 시작 위치 (분기 내 상대적 위치)
-  const startPosition =
-    (startMonthIndex * monthWidth + startDayPosition) / (3 * monthWidth);
-
-  // 종료 위치 (분기 내 상대적 위치)
-  const endMonthIndex = endQuarter.months.indexOf(endDate.getMonth() + 1);
-  const endPosition =
-    (endMonthIndex * monthWidth + endDayPosition) / (3 * monthWidth);
-
-  let leftPos, width;
-
-  if (startQuarterIndex === endQuarterIndex) {
-    // 같은 분기 내에 있는 경우
-    leftPos = startQuarterIndex * 300 + startPosition * 300;
-
-    // 같은 날짜인 경우 최소 너비 적용
-    if (startDate.getTime() === endDate.getTime()) {
-      width = 10; // 최소 너비
-    } else {
-      width = (endPosition - startPosition) * 300;
-    }
-  } else {
-    // 다른 분기에 걸쳐 있는 경우
-    leftPos = startQuarterIndex * 300 + startPosition * 300;
-    width =
-      (endQuarterIndex - startQuarterIndex) * 300 +
-      endPosition * 300 -
-      startPosition * 300;
-  }
-
-  // 상태에 따른 색상 결정 - 최상위 계획은 색상을 더 진하게
-  const bgColor = isParent
-    ? plan.status === PlanStatus.COMPLETED
-      ? "bg-green-300 border-green-500"
-      : plan.status === PlanStatus.IN_PROGRESS
-      ? "bg-blue-300 border-blue-500"
-      : plan.status === PlanStatus.CANCELED
-      ? "bg-red-300 border-red-500"
-      : "bg-gray-300 border-gray-500"
-    : plan.status === PlanStatus.COMPLETED
-    ? "bg-green-200"
-    : plan.status === PlanStatus.IN_PROGRESS
-    ? "bg-blue-200"
-    : plan.status === PlanStatus.CANCELED
-    ? "bg-red-200"
-    : "bg-gray-200";
-
-  // 날짜 간 차이 계산
-  const daysDiff = differenceInDays(endDate, startDate) + 1;
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <div
-          className={`absolute rounded-lg border px-3 py-1 shadow-sm ${bgColor} cursor-pointer hover:brightness-95 transition-all ${
-            isParent ? "border-2" : ""
-          }`}
-          style={{
-            left: `${leftPos}px`,
-            width: `${Math.max(width, 10)}px`, // 최소 너비 10px
-            top: "4px",
-            height: "32px",
-          }}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          <div className="flex items-center justify-between h-full">
-            <div className="text-xs font-medium truncate">{plan.name}</div>
-            {isParent && isHovered && onAddSubPlan && (
-              <button
-                className="ml-1 p-0.5 bg-white rounded-full hover:bg-gray-100 transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddSubPlan(plan);
-                }}
-                title="하위 계획 추가"
-              >
-                <Plus size={14} className="text-blue-500" />
-              </button>
-            )}
-          </div>
-        </div>
-      </PopoverTrigger>
-      <PopoverContent className="w-72 p-4">
-        <div className="space-y-2">
-          <h3 className="font-bold text-lg">{plan.name}</h3>
-          {plan.description && (
-            <p className="text-sm text-gray-600">{plan.description}</p>
-          )}
-          <div className="text-xs space-y-1">
-            <div className="flex items-center">
-              <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
-              <span>시작: {formatDate(startDate)}</span>
-            </div>
-            <div className="flex items-center">
-              <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
-              <span>종료: {formatDate(endDate)}</span>
-            </div>
-            <div className="flex items-center mt-1">
-              <span className="text-gray-500 mr-1.5">기간:</span>
-              <span>{daysDiff}일</span>
-            </div>
-            <div className="flex items-center mt-1">
-              <span className="text-gray-500 mr-1.5">상태:</span>
-              <span
-                className={`px-1.5 py-0.5 rounded text-xs ${getStatusColor(
-                  plan.status
-                )}`}
-              >
-                {plan.status}
-              </span>
-            </div>
-            {isParent && (
-              <div className="flex items-center mt-1">
-                <span className="text-gray-500 mr-1.5">유형:</span>
-                <span className="px-1.5 py-0.5 rounded text-xs bg-purple-100 text-purple-800">
-                  최상위 계획
-                </span>
-              </div>
-            )}
-            {!isParent && (
-              <div className="flex items-center mt-1">
-                <span className="text-gray-500 mr-1.5">유형:</span>
-                <span className="px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-800">
-                  하위 계획
-                </span>
-              </div>
-            )}
-            {plan.progress > 0 && (
-              <div className="mt-2">
-                <div className="flex justify-between text-xs mb-1">
-                  <span>진행률</span>
-                  <span>{plan.progress}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div
-                    className="bg-blue-600 h-1.5 rounded-full"
-                    style={{ width: `${plan.progress}%` }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-};
+// MongoDB 문서 타입 정의
+interface MongoDocument {
+  _id: string;
+  [key: string]: unknown;
+}
 
 export function TimelinePlanner() {
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -302,7 +40,7 @@ export function TimelinePlanner() {
 
       const data = await response.json();
       // MongoDB의 _id 값을 id로 매핑
-      const plansWithId = data.map((plan: any) => ({
+      const plansWithId = data.map((plan: MongoDocument) => ({
         ...plan,
         id: plan._id || plan.id, // _id가 있으면 사용하고, 없으면 기존 id 사용
       }));
@@ -840,7 +578,7 @@ export function TimelinePlanner() {
                     // 모든 최상위 계획의 위치 정보 계산
                     let currentOffset = 0;
                     const planPositions = arrangedPlans.topLevelPlans.map(
-                      (item, index) => {
+                      (item) => {
                         // 현재 최상위 계획의 상단 위치
                         const topOffset = currentOffset;
 

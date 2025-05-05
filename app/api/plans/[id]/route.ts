@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/src/lib/db";
 import { Plan } from "@/src/lib/models";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth/auth-options";
 import mongoose from "mongoose";
 
 interface Params {
@@ -12,7 +12,7 @@ interface Params {
 }
 
 // 특정 계획 가져오기
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(_request: NextRequest, { params }: Params) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -198,10 +198,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 }
 
 // 계획 업데이트
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, { params }: Params) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -212,7 +209,7 @@ export async function PUT(
       );
     }
 
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -243,6 +240,7 @@ export async function PUT(
     }
 
     // userId 필드는 수정 불가능하도록 제외
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { userId, ...updateData } = body;
 
     const updatedPlan = await Plan.findByIdAndUpdate(

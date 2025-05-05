@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Calendar, ClipboardList, Plus, Edit, Trash } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,6 +19,7 @@ import {
 import { StudyLogForm } from "./study-log-form";
 import { useStore } from "@/src/lib/store";
 import { format } from "@/src/lib/date-utils";
+import { Plan } from "@/src/lib/types";
 
 export function StudyLogList() {
   // 각 상태를 개별적으로 선택하여 불필요한 리렌더링 방지
@@ -46,7 +46,7 @@ export function StudyLogList() {
   const getPlanNameById = (planId?: string) => {
     if (!planId) return "";
 
-    const findPlanNameById = (plans: any[], id: string): string => {
+    const findPlanNameById = (plans: Plan[], id: string): string => {
       for (const plan of plans) {
         if (plan.id === id) return plan.name;
         if (plan.subPlans) {
