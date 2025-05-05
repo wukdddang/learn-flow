@@ -20,6 +20,11 @@ const studyLogSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Plan",
     },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
   },
   { timestamps: true }
 );
@@ -55,6 +60,11 @@ const planSchema = new Schema(
     parentPlanId: {
       type: Schema.Types.ObjectId,
       ref: "Plan",
+    },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
     },
   },
   { timestamps: true }
