@@ -1,18 +1,12 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, Calendar, Clock, BarChart2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NavBar } from "@/components/nav-bar";
 
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen items-center">
-      <header className="bg-white py-4 border-b w-full">
-        <div className="container flex justify-between items-center max-w-7xl mx-auto px-4">
-          <h1 className="text-2xl font-bold">LearnFlow</h1>
-          <Link href="/dashboard">
-            <Button>대시보드 바로가기</Button>
-          </Link>
-        </div>
-      </header>
+      <NavBar />
 
       <main className="flex-grow w-full">
         <section className="py-20 bg-gradient-to-b from-white to-gray-50 w-full">
