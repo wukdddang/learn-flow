@@ -22,6 +22,9 @@ export default function DashboardPage() {
           <TabsTrigger value="stats">통계</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="timeline" className="mt-6">
+          <TimelinePlanner />
+        </TabsContent>
         <TabsContent value="studyLogs" className="mt-6">
           <StudyLogList />
         </TabsContent>
@@ -34,10 +37,6 @@ export default function DashboardPage() {
 
         <TabsContent value="stats" className="mt-6">
           <StatsDashboard />
-        </TabsContent>
-
-        <TabsContent value="timeline" className="mt-6">
-          <TimelinePlanner />
         </TabsContent>
       </Tabs>
     </div>

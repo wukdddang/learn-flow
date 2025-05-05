@@ -1,5 +1,11 @@
-import { useState, useMemo, useRef } from "react";
-import { Plus, ChevronRight, ChevronDown, Calendar } from "lucide-react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import {
+  Plus,
+  ChevronRight,
+  ChevronDown,
+  Calendar,
+  Loader2,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +22,6 @@ import {
 } from "@/components/ui/popover";
 import { PlanForm } from "../../dialog/create-plan-dialog";
 import { Plan, PlanStatus } from "@/src/lib/types";
-import { useStore } from "@/src/lib/store";
 import { format, differenceInDays } from "@/src/lib/date-utils";
 
 // 계획 상태에 따른 색상 지정 함수
@@ -223,9 +228,72 @@ const TimelineItem = ({
 };
 
 export function TimelinePlanner() {
-  const plans = useStore((state) => state.plans);
-  const addPlan = useStore((state) => state.addPlan);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // 데이터베이스에서 계획 데이터 가져오기
+  const fetchPlans = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/plans");
+
+      if (!response.ok) {
+        throw new Error("계획을 가져오는데 실패했습니다.");
+      }
+
+      const data = await response.json();
+      setPlans(data);
+      setError(null);
+    } catch (err) {
+      console.error("계획 가져오기 오류:", err);
+      setError("계획을 가져오는 중 오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 새 계획 추가
+  const addPlan = async (planData: {
+    name: string;
+    description?: string;
+    startDate: Date;
+    endDate: Date;
+    color?: string;
+  }) => {
+    try {
+      // Plan 인터페이스에 맞게 데이터 구성
+      const completeData = {
+        ...planData,
+        status: PlanStatus.NOT_STARTED,
+        progress: 0,
+      };
+
+      const response = await fetch("/api/plans", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(completeData),
+      });
+
+      if (!response.ok) {
+        throw new Error("계획을 추가하는데 실패했습니다.");
+      }
+
+      const newPlan = await response.json();
+      setPlans((prev) => [...prev, newPlan]);
+    } catch (err) {
+      console.error("계획 추가 오류:", err);
+      setError("계획을 추가하는 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 컴포넌트 마운트 시 데이터 가져오기
+  useEffect(() => {
+    fetchPlans();
+  }, []);
 
   // 타임라인 표시 범위 (2025년부터 5년간)
   const startYear = 2025;
@@ -433,202 +501,230 @@ export function TimelinePlanner() {
           WebkitOverflowScrolling: "touch",
         }}
       >
-        <div style={{ minWidth: `${timelineWidth}px` }} className="relative">
-          {/* 현재 날짜 표시 (수직선) */}
-          {(() => {
-            const today = new Date();
-            const currentYearQuarter = allYearQuarters.find(
-              (q) =>
-                q.year === today.getFullYear() &&
-                q.months.includes(today.getMonth() + 1)
-            );
+        {isLoading ? (
+          <div className="flex justify-center items-center h-full">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            <span className="ml-2 text-blue-500">데이터를 불러오는 중...</span>
+          </div>
+        ) : error ? (
+          <div className="text-center p-8 border rounded-md bg-red-50 text-red-500">
+            <p>{error}</p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => fetchPlans()}
+            >
+              다시 시도
+            </Button>
+          </div>
+        ) : (
+          <div style={{ minWidth: `${timelineWidth}px` }} className="relative">
+            {/* 현재 날짜 표시 (수직선) */}
+            {(() => {
+              const today = new Date();
+              const currentYearQuarter = allYearQuarters.find(
+                (q) =>
+                  q.year === today.getFullYear() &&
+                  q.months.includes(today.getMonth() + 1)
+              );
 
-            if (!currentYearQuarter) return null;
+              if (!currentYearQuarter) return null;
 
-            const currentYearIndex = years.findIndex(
-              (y) => y === today.getFullYear()
-            );
+              const currentYearIndex = years.findIndex(
+                (y) => y === today.getFullYear()
+              );
 
-            if (currentYearIndex === -1) return null;
+              if (currentYearIndex === -1) return null;
 
-            const currentQuarterIndex = quarters.findIndex(
-              (q) => q.id === currentYearQuarter.id
-            );
-            const monthIndexInQuarter = currentYearQuarter.months.indexOf(
-              today.getMonth() + 1
-            );
+              const currentQuarterIndex = quarters.findIndex(
+                (q) => q.id === currentYearQuarter.id
+              );
+              const monthIndexInQuarter = currentYearQuarter.months.indexOf(
+                today.getMonth() + 1
+              );
 
-            // 월 내 상대적 위치 (0-1 사이의 값)
-            const dayPosition =
-              (today.getDate() - 1) /
-              new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+              // 월 내 상대적 위치 (0-1 사이의 값)
+              const dayPosition =
+                (today.getDate() - 1) /
+                new Date(
+                  today.getFullYear(),
+                  today.getMonth() + 1,
+                  0
+                ).getDate();
 
-            const leftPosition =
-              (currentYearIndex * 4 + currentQuarterIndex) * 300 +
-              (monthIndexInQuarter + dayPosition) * (300 / 3);
+              const leftPosition =
+                (currentYearIndex * 4 + currentQuarterIndex) * 300 +
+                (monthIndexInQuarter + dayPosition) * (300 / 3);
 
-            return (
-              <div
-                className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20"
-                style={{
-                  left: `${leftPosition}px`,
-                }}
-              >
-                <div className="absolute -top-6 -left-[12px] bg-red-500 text-white text-xs px-1 py-0.5 rounded"></div>
-              </div>
-            );
-          })()}
-
-          {/* 타임라인 헤더 */}
-          <div className="mb-6">
-            <div className="relative border-b pb-2">
-              <div className="flex flex-col">
-                {/* 년도 표시 */}
-                <div className="flex w-full border-b">
-                  {years.map((year) => (
-                    <div
-                      key={`year-${year}`}
-                      className="text-center py-2 font-medium text-gray-700"
-                      style={{
-                        minWidth: `${300 * 4}px`,
-                        flex: "1",
-                        borderRight:
-                          year !== years[years.length - 1]
-                            ? "1px solid #e5e7eb"
-                            : "none",
-                      }}
-                    >
-                      {year}년
-                    </div>
-                  ))}
+              return (
+                <div
+                  className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20"
+                  style={{
+                    left: `${leftPosition}px`,
+                  }}
+                >
+                  <div className="absolute -top-6 -left-[12px] bg-red-500 text-white text-xs px-1 py-0.5 rounded"></div>
                 </div>
+              );
+            })()}
 
-                {/* 분기 및 월 표시 */}
-                <div className="flex w-full">
-                  {allYearQuarters.map((yearQuarter) => (
-                    <div
-                      key={`quarter-${yearQuarter.year}-q${yearQuarter.id}`}
-                      className="relative border-r last:border-r-0 border-gray-200 py-2"
-                      style={{ minWidth: "300px", flex: "1" }}
-                    >
-                      <div className="text-center text-sm">
-                        <span className="font-medium">{yearQuarter.label}</span>
-                        <span className="text-gray-500 ml-1">
-                          {yearQuarter.range}
-                        </span>
+            {/* 타임라인 헤더 */}
+            <div className="mb-6">
+              <div className="relative border-b pb-2">
+                <div className="flex flex-col">
+                  {/* 년도 표시 */}
+                  <div className="flex w-full border-b">
+                    {years.map((year) => (
+                      <div
+                        key={`year-${year}`}
+                        className="text-center py-2 font-medium text-gray-700"
+                        style={{
+                          minWidth: `${300 * 4}px`,
+                          flex: "1",
+                          borderRight:
+                            year !== years[years.length - 1]
+                              ? "1px solid #e5e7eb"
+                              : "none",
+                        }}
+                      >
+                        {year}년
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+
+                  {/* 분기 및 월 표시 */}
+                  <div className="flex w-full">
+                    {allYearQuarters.map((yearQuarter) => (
+                      <div
+                        key={`quarter-${yearQuarter.year}-q${yearQuarter.id}`}
+                        className="relative border-r last:border-r-0 border-gray-200 py-2"
+                        style={{ minWidth: "300px", flex: "1" }}
+                      >
+                        <div className="text-center text-sm">
+                          <span className="font-medium">
+                            {yearQuarter.label}
+                          </span>
+                          <span className="text-gray-500 ml-1">
+                            {yearQuarter.range}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* 계획 타임라인 */}
-          <div className="mt-4 relative">
-            {plans.length === 0 ? (
-              <div className="text-center p-8 border rounded-md bg-gray-50">
-                <p>계획이 없습니다. 새 계획을 생성해보세요!</p>
-              </div>
-            ) : (
-              <div className="relative min-h-[100px] border bg-gray-50 rounded-md p-2">
-                {arrangedPlans.map((item) => {
-                  // 계획 상태에 따른 색상 결정
-                  const bgColor =
-                    item.plan.status === PlanStatus.COMPLETED
-                      ? "bg-green-200"
-                      : item.plan.status === PlanStatus.IN_PROGRESS
-                      ? "bg-blue-200"
-                      : item.plan.status === PlanStatus.CANCELED
-                      ? "bg-red-200"
-                      : "bg-gray-200";
+            {/* 계획 타임라인 */}
+            <div className="mt-4 relative">
+              {plans.length === 0 ? (
+                <div className="text-center p-8 border rounded-md bg-gray-50">
+                  <p>계획이 없습니다. 새 계획을 생성해보세요!</p>
+                </div>
+              ) : (
+                <div className="relative min-h-[100px] border bg-gray-50 rounded-md p-2">
+                  {arrangedPlans.map((item) => {
+                    // 계획 상태에 따른 색상 결정
+                    const bgColor =
+                      item.plan.status === PlanStatus.COMPLETED
+                        ? "bg-green-200"
+                        : item.plan.status === PlanStatus.IN_PROGRESS
+                        ? "bg-blue-200"
+                        : item.plan.status === PlanStatus.CANCELED
+                        ? "bg-red-200"
+                        : "bg-gray-200";
 
-                  // 날짜 간 차이 계산
-                  const startDate = new Date(item.plan.startDate);
-                  const endDate = new Date(item.plan.endDate);
-                  const daysDiff = differenceInDays(endDate, startDate) + 1;
+                    // 날짜 간 차이 계산
+                    const startDate = new Date(item.plan.startDate);
+                    const endDate = new Date(item.plan.endDate);
+                    const daysDiff = differenceInDays(endDate, startDate) + 1;
 
-                  const rowHeight = 40; // 각 행의 높이
-                  const rowSpacing = 8; // 행 간 간격
+                    const rowHeight = 40; // 각 행의 높이
+                    const rowSpacing = 8; // 행 간 간격
 
-                  return (
-                    <Popover key={item.plan.id}>
-                      <PopoverTrigger asChild>
-                        <div
-                          className={`absolute rounded-lg border px-3 py-1 shadow-sm ${bgColor} cursor-pointer hover:brightness-95 transition-all`}
-                          style={{
-                            left: `${item.left}px`,
-                            width: `${item.width}px`,
-                            top: `${item.row * (rowHeight + rowSpacing) + 4}px`,
-                            height: `${rowHeight - 8}px`, // 행 높이에서 약간의 패딩
-                          }}
-                        >
-                          <div className="text-xs font-medium truncate">
-                            {item.plan.name}
+                    return (
+                      <Popover key={item.plan.id}>
+                        <PopoverTrigger asChild>
+                          <div
+                            className={`absolute rounded-lg border px-3 py-1 shadow-sm ${bgColor} cursor-pointer hover:brightness-95 transition-all`}
+                            style={{
+                              left: `${item.left}px`,
+                              width: `${item.width}px`,
+                              top: `${
+                                item.row * (rowHeight + rowSpacing) + 4
+                              }px`,
+                              height: `${rowHeight - 8}px`, // 행 높이에서 약간의 패딩
+                            }}
+                          >
+                            <div className="text-xs font-medium truncate">
+                              {item.plan.name}
+                            </div>
                           </div>
-                        </div>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-72 p-4">
-                        <div className="space-y-2">
-                          <h3 className="font-bold text-lg">
-                            {item.plan.name}
-                          </h3>
-                          {item.plan.description && (
-                            <p className="text-sm text-gray-600">
-                              {item.plan.description}
-                            </p>
-                          )}
-                          <div className="text-xs space-y-1">
-                            <div className="flex items-center">
-                              <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
-                              <span>시작: {formatDate(startDate)}</span>
-                            </div>
-                            <div className="flex items-center">
-                              <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
-                              <span>종료: {formatDate(endDate)}</span>
-                            </div>
-                            <div className="flex items-center mt-1">
-                              <span className="text-gray-500 mr-1.5">
-                                기간:
-                              </span>
-                              <span>{daysDiff}일</span>
-                            </div>
-                            <div className="flex items-center mt-1">
-                              <span className="text-gray-500 mr-1.5">
-                                상태:
-                              </span>
-                              <span
-                                className={`px-1.5 py-0.5 rounded text-xs ${getStatusColor(
-                                  item.plan.status
-                                )}`}
-                              >
-                                {item.plan.status}
-                              </span>
-                            </div>
-                            {item.plan.progress > 0 && (
-                              <div className="mt-2">
-                                <div className="flex justify-between text-xs mb-1">
-                                  <span>진행률</span>
-                                  <span>{item.plan.progress}%</span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                  <div
-                                    className="bg-blue-600 h-1.5 rounded-full"
-                                    style={{ width: `${item.plan.progress}%` }}
-                                  />
-                                </div>
-                              </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72 p-4">
+                          <div className="space-y-2">
+                            <h3 className="font-bold text-lg">
+                              {item.plan.name}
+                            </h3>
+                            {item.plan.description && (
+                              <p className="text-sm text-gray-600">
+                                {item.plan.description}
+                              </p>
                             )}
+                            <div className="text-xs space-y-1">
+                              <div className="flex items-center">
+                                <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
+                                <span>시작: {formatDate(startDate)}</span>
+                              </div>
+                              <div className="flex items-center">
+                                <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
+                                <span>종료: {formatDate(endDate)}</span>
+                              </div>
+                              <div className="flex items-center mt-1">
+                                <span className="text-gray-500 mr-1.5">
+                                  기간:
+                                </span>
+                                <span>{daysDiff}일</span>
+                              </div>
+                              <div className="flex items-center mt-1">
+                                <span className="text-gray-500 mr-1.5">
+                                  상태:
+                                </span>
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-xs ${getStatusColor(
+                                    item.plan.status
+                                  )}`}
+                                >
+                                  {item.plan.status}
+                                </span>
+                              </div>
+                              {item.plan.progress > 0 && (
+                                <div className="mt-2">
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span>진행률</span>
+                                    <span>{item.plan.progress}%</span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                    <div
+                                      className="bg-blue-600 h-1.5 rounded-full"
+                                      style={{
+                                        width: `${item.plan.progress}%`,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  );
-                })}
-              </div>
-            )}
+                        </PopoverContent>
+                      </Popover>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
