@@ -23,7 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useStore } from "@/app/lib/store";
-import { PomodoroSettings } from "@/app/components/pomodoro/PomodoroSettings";
+import { PomodoroSettings } from "@/app/components/pomodoro/pomodoro-settings";
 
 type TimerState = "idle" | "running" | "paused";
 type TimerMode = "work" | "break" | "longBreak";

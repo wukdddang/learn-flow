@@ -14,7 +14,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { PlanForm } from "../plan/PlanForm";
+import { PlanForm } from "../plan/plan-form";
 import { Plan, PlanStatus } from "@/app/lib/types";
 import { useStore } from "@/app/lib/store";
 import { format, differenceInDays } from "@/app/lib/date-utils";
@@ -474,9 +474,7 @@ export function TimelinePlanner() {
                   left: `${leftPosition}px`,
                 }}
               >
-                <div className="absolute -top-6 -left-[12px] bg-red-500 text-white text-xs px-1 py-0.5 rounded">
-                  오늘
-                </div>
+                <div className="absolute -top-6 -left-[12px] bg-red-500 text-white text-xs px-1 py-0.5 rounded"></div>
               </div>
             );
           })()}

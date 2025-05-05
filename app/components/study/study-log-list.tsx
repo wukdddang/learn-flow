@@ -17,7 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { StudyLogForm } from "./StudyLogForm";
+import { StudyLogForm } from "./study-log-form";
 import { useStore } from "@/app/lib/store";
 import { format } from "@/app/lib/date-utils";
 

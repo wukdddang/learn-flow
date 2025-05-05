@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,7 +13,6 @@ import {
 } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PomodoroSettings as PomodoroSettingsType } from "@/app/lib/types";
 
 const formSchema = z.object({
   workDuration: z.number().min(1).max(120),
