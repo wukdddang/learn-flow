@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import { toast } from "sonner";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -37,7 +39,7 @@ export default function LoginPage() {
         toast.error("로그인 실패: 이메일 또는 비밀번호가 올바르지 않습니다.");
       } else {
         toast.success("로그인 성공!");
-        router.push("/dashboard");
+        router.push(callbackUrl);
         router.refresh();
       }
     } catch (error) {

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
+import { toast } from "sonner";
 
 export function NavBar() {
   const pathname = usePathname();
@@ -24,6 +25,16 @@ export function NavBar() {
       href: "/plans",
     },
   ];
+
+  const handleLogout = async () => {
+    try {
+      await signOut({ callbackUrl: "/" });
+      toast.success("로그아웃 되었습니다.");
+    } catch (error) {
+      toast.error("로그아웃 중 오류가 발생했습니다.");
+      console.error("로그아웃 오류:", error);
+    }
+  };
 
   return (
     <div className="border-b bg-white dark:bg-gray-950">
@@ -55,11 +66,9 @@ export function NavBar() {
               <span className="text-sm">
                 {session.user?.name || session.user?.email}
               </span>
-              <Link href="/api/auth/signout">
-                <Button variant="outline" size="sm">
-                  로그아웃
-                </Button>
-              </Link>
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                로그아웃
+              </Button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
