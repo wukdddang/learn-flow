@@ -22,6 +22,7 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { CreatePlanDialog } from "../../dialog/create-plan-dialog";
+import { CreateSubPlanDialog } from "../../dialog/create-subplan-dialog";
 import { EditPlan } from "../../dialog/edit-plan-dialog";
 import { Plan, PlanStatus } from "@/src/lib/types";
 import { format, differenceInDays } from "@/src/lib/date-utils";
@@ -51,10 +52,15 @@ const formatDate = (date: Date) => {
 const TimelineItem = ({
   plan,
   allYearQuarters,
+  onAddSubPlan,
+  isParent = false,
 }: {
   plan: Plan;
   allYearQuarters: any[];
+  onAddSubPlan?: (parentPlan: Plan) => void;
+  isParent?: boolean;
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
   const startDate = new Date(plan.startDate);
   const endDate = new Date(plan.endDate);
 
@@ -151,15 +157,22 @@ const TimelineItem = ({
       startPosition * 300;
   }
 
-  // 상태에 따른 색상 결정
-  const bgColor =
-    plan.status === PlanStatus.COMPLETED
-      ? "bg-green-200"
+  // 상태에 따른 색상 결정 - 최상위 계획은 색상을 더 진하게
+  const bgColor = isParent
+    ? plan.status === PlanStatus.COMPLETED
+      ? "bg-green-300 border-green-500"
       : plan.status === PlanStatus.IN_PROGRESS
-      ? "bg-blue-200"
+      ? "bg-blue-300 border-blue-500"
       : plan.status === PlanStatus.CANCELED
-      ? "bg-red-200"
-      : "bg-gray-200";
+      ? "bg-red-300 border-red-500"
+      : "bg-gray-300 border-gray-500"
+    : plan.status === PlanStatus.COMPLETED
+    ? "bg-green-200"
+    : plan.status === PlanStatus.IN_PROGRESS
+    ? "bg-blue-200"
+    : plan.status === PlanStatus.CANCELED
+    ? "bg-red-200"
+    : "bg-gray-200";
 
   // 날짜 간 차이 계산
   const daysDiff = differenceInDays(endDate, startDate) + 1;
@@ -168,15 +181,33 @@ const TimelineItem = ({
     <Popover>
       <PopoverTrigger asChild>
         <div
-          className={`absolute rounded-lg border px-3 py-1 shadow-sm ${bgColor} cursor-pointer hover:brightness-95 transition-all`}
+          className={`absolute rounded-lg border px-3 py-1 shadow-sm ${bgColor} cursor-pointer hover:brightness-95 transition-all ${
+            isParent ? "border-2" : ""
+          }`}
           style={{
             left: `${leftPos}px`,
             width: `${Math.max(width, 10)}px`, // 최소 너비 10px
             top: "4px",
             height: "32px",
           }}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
         >
-          <div className="text-xs font-medium truncate">{plan.name}</div>
+          <div className="flex items-center justify-between h-full">
+            <div className="text-xs font-medium truncate">{plan.name}</div>
+            {isParent && isHovered && onAddSubPlan && (
+              <button
+                className="ml-1 p-0.5 bg-white rounded-full hover:bg-gray-100 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddSubPlan(plan);
+                }}
+                title="하위 계획 추가"
+              >
+                <Plus size={14} className="text-blue-500" />
+              </button>
+            )}
+          </div>
         </div>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-4">
@@ -208,6 +239,22 @@ const TimelineItem = ({
                 {plan.status}
               </span>
             </div>
+            {isParent && (
+              <div className="flex items-center mt-1">
+                <span className="text-gray-500 mr-1.5">유형:</span>
+                <span className="px-1.5 py-0.5 rounded text-xs bg-purple-100 text-purple-800">
+                  최상위 계획
+                </span>
+              </div>
+            )}
+            {!isParent && (
+              <div className="flex items-center mt-1">
+                <span className="text-gray-500 mr-1.5">유형:</span>
+                <span className="px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-800">
+                  하위 계획
+                </span>
+              </div>
+            )}
             {plan.progress > 0 && (
               <div className="mt-2">
                 <div className="flex justify-between text-xs mb-1">
@@ -235,6 +282,10 @@ export function TimelinePlanner() {
   const [error, setError] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [parentPlanForSubPlan, setParentPlanForSubPlan] = useState<Plan | null>(
+    null
+  );
+  const [isSubPlanDialogOpen, setIsSubPlanDialogOpen] = useState(false);
 
   // 데이터베이스에서 계획 데이터 가져오기
   const fetchPlans = async () => {
@@ -347,19 +398,39 @@ export function TimelinePlanner() {
     return result;
   }, [years]);
 
-  // 이벤트 행 배치 계산
+  // 이벤트 행 배치 계산 - 최상위 계획과 하위 계획 구분
   const arrangedPlans = useMemo(() => {
-    const rows: { plan: Plan; row: number; left: number; width: number }[][] =
-      [];
+    const topLevelRows: {
+      plan: Plan;
+      row: number;
+      left: number;
+      width: number;
+    }[][] = [];
+    const subPlanRows: {
+      plan: Plan;
+      row: number;
+      left: number;
+      width: number;
+      parentId: string;
+    }[][] = [];
+
+    // 최상위 계획과 하위 계획 분리
+    const topLevelPlans = plans.filter((p) => !p.parentPlanId);
+    const subPlans = plans.filter((p) => p.parentPlanId);
 
     // 계획을 시작 날짜 순으로 정렬
-    const sortedPlans = [...plans].sort(
+    const sortedTopLevelPlans = [...topLevelPlans].sort(
       (a, b) =>
         new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
     );
 
-    // 각 계획의 위치 계산
-    sortedPlans.forEach((plan) => {
+    const sortedSubPlans = [...subPlans].sort(
+      (a, b) =>
+        new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+    );
+
+    // 최상위 계획 위치 계산
+    sortedTopLevelPlans.forEach((plan) => {
       const startDate = new Date(plan.startDate);
       const endDate = new Date(plan.endDate);
 
@@ -399,20 +470,17 @@ export function TimelinePlanner() {
         (q) => q.year === endQuarter.year && q.id === endQuarter.id
       );
 
-      // 분기 내 위치 계산
       const startMonthIndex = startQuarter.months.indexOf(
         startDate.getMonth() + 1
       );
       const endMonthIndex = endQuarter.months.indexOf(endDate.getMonth() + 1);
 
-      // 날짜 위치 계산 (0.33px * 일수)
       const dayWidth = 0.33;
       const monthWidth = 30 * dayWidth;
 
       const startDayPosition = (startDate.getDate() - 1) * dayWidth;
       const endDayPosition = endDate.getDate() * dayWidth;
 
-      // 시작 위치와 종료 위치 계산
       const startPosition =
         (startMonthIndex * monthWidth + startDayPosition) / (3 * monthWidth);
       const endPosition =
@@ -435,23 +503,114 @@ export function TimelinePlanner() {
           startPosition * 300;
       }
 
-      // 이벤트 겹침 확인 및 행 결정
+      // 최상위 계획은 각자 고유 행에 배치 (다른 행과 겹치지 않음)
+      const rowIndex = topLevelRows.length;
+      if (!topLevelRows[rowIndex]) {
+        topLevelRows[rowIndex] = [];
+      }
+
+      // 결정된 행에 이벤트 추가
+      topLevelRows[rowIndex].push({
+        plan,
+        row: rowIndex,
+        left: leftPos,
+        width: Math.max(width, 10),
+      });
+    });
+
+    // 하위 계획 위치 계산
+    sortedSubPlans.forEach((plan) => {
+      const startDate = new Date(plan.startDate);
+      const endDate = new Date(plan.endDate);
+
+      // 시작 분기와 종료 분기 찾기
+      const startQuarter = allYearQuarters.find((q) => {
+        const quarterStartMonth = q.months[0];
+        const quarterEndMonth = q.months[2];
+        const year = q.year;
+
+        return (
+          startDate.getFullYear() === year &&
+          startDate.getMonth() + 1 >= quarterStartMonth &&
+          startDate.getMonth() + 1 <= quarterEndMonth
+        );
+      });
+
+      const endQuarter = allYearQuarters.find((q) => {
+        const quarterStartMonth = q.months[0];
+        const quarterEndMonth = q.months[2];
+        const year = q.year;
+
+        return (
+          endDate.getFullYear() === year &&
+          endDate.getMonth() + 1 >= quarterStartMonth &&
+          endDate.getMonth() + 1 <= quarterEndMonth
+        );
+      });
+
+      if (!startQuarter || !endQuarter) return;
+
+      // 시작 분기와 종료 분기의 인덱스 찾기
+      const startQuarterIndex = allYearQuarters.findIndex(
+        (q) => q.year === startQuarter.year && q.id === startQuarter.id
+      );
+
+      const endQuarterIndex = allYearQuarters.findIndex(
+        (q) => q.year === endQuarter.year && q.id === endQuarter.id
+      );
+
+      const startMonthIndex = startQuarter.months.indexOf(
+        startDate.getMonth() + 1
+      );
+      const endMonthIndex = endQuarter.months.indexOf(endDate.getMonth() + 1);
+
+      const dayWidth = 0.33;
+      const monthWidth = 30 * dayWidth;
+
+      const startDayPosition = (startDate.getDate() - 1) * dayWidth;
+      const endDayPosition = endDate.getDate() * dayWidth;
+
+      const startPosition =
+        (startMonthIndex * monthWidth + startDayPosition) / (3 * monthWidth);
+      const endPosition =
+        (endMonthIndex * monthWidth + endDayPosition) / (3 * monthWidth);
+
+      let leftPos, width;
+
+      if (startQuarterIndex === endQuarterIndex) {
+        leftPos = startQuarterIndex * 300 + startPosition * 300;
+        if (startDate.getTime() === endDate.getTime()) {
+          width = 10;
+        } else {
+          width = (endPosition - startPosition) * 300;
+        }
+      } else {
+        leftPos = startQuarterIndex * 300 + startPosition * 300;
+        width =
+          (endQuarterIndex - startQuarterIndex) * 300 +
+          endPosition * 300 -
+          startPosition * 300;
+      }
+
+      // 하위 계획은 같은 부모를 가진 계획끼리 행 겹침 처리
       let rowIndex = 0;
       let foundRow = false;
 
       while (!foundRow) {
-        if (!rows[rowIndex]) {
-          rows[rowIndex] = [];
+        if (!subPlanRows[rowIndex]) {
+          subPlanRows[rowIndex] = [];
           foundRow = true;
         } else {
-          // 현재 행에 있는 모든 이벤트와 겹치는지 확인
-          const hasOverlap = rows[rowIndex].some((item) => {
+          // 같은 행의 다른 하위 계획과 겹치는지 확인
+          const hasOverlap = subPlanRows[rowIndex].some((item) => {
+            // 같은 부모의 하위 계획이 아니면 겹침 체크 안 함
+            if (item.parentId !== plan.parentPlanId) return false;
+
             const itemLeft = item.left;
             const itemRight = item.left + item.width;
             const eventLeft = leftPos;
             const eventRight = leftPos + width;
 
-            // 겹침 여부 확인
             return (
               (eventLeft >= itemLeft && eventLeft <= itemRight) ||
               (eventRight >= itemLeft && eventRight <= itemRight) ||
@@ -468,16 +627,20 @@ export function TimelinePlanner() {
       }
 
       // 결정된 행에 이벤트 추가
-      rows[rowIndex].push({
+      subPlanRows[rowIndex].push({
         plan,
         row: rowIndex,
         left: leftPos,
         width: Math.max(width, 10),
+        parentId: plan.parentPlanId || "",
       });
     });
 
-    // 모든 행의 이벤트 병합
-    return rows.flat();
+    // 모든 행의 이벤트 합치되, 최상위 계획과 하위 계획 정보 유지
+    return {
+      topLevelPlans: topLevelRows.flat(),
+      subPlans: subPlanRows.flat(),
+    };
   }, [plans, allYearQuarters]);
 
   // 스크롤 참조
@@ -485,6 +648,19 @@ export function TimelinePlanner() {
 
   // 전체 타임라인 너비 계산 (각 분기별 최소 너비 300px)
   const timelineWidth = allYearQuarters.length * 300;
+
+  // 하위 계획 추가 핸들러
+  const handleAddSubPlan = (parentPlan: Plan) => {
+    setParentPlanForSubPlan(parentPlan);
+    setIsSubPlanDialogOpen(true);
+  };
+
+  // 하위 계획 생성 성공 핸들러
+  const handleSubPlanCreated = (newPlan: Plan) => {
+    setPlans((prev) => [...prev, newPlan]);
+    setIsSubPlanDialogOpen(false);
+    setParentPlanForSubPlan(null);
+  };
 
   return (
     <div className="relative flex flex-col h-[calc(100vh-12rem)]">
@@ -504,6 +680,22 @@ export function TimelinePlanner() {
           }}
           onUpdate={updatePlan}
           onDelete={deletePlan}
+        />
+      )}
+
+      {/* 하위 계획 생성 다이얼로그 */}
+      {parentPlanForSubPlan && (
+        <CreateSubPlanDialog
+          parentPlan={parentPlanForSubPlan}
+          onSuccess={handleSubPlanCreated}
+          open={isSubPlanDialogOpen}
+          onOpenChange={(open) => {
+            setIsSubPlanDialogOpen(open);
+            if (!open) {
+              // 다이얼로그가 닫힐 때 부모 계획 참조 초기화
+              setTimeout(() => setParentPlanForSubPlan(null), 300);
+            }
+          }}
         />
       )}
 
@@ -639,114 +831,105 @@ export function TimelinePlanner() {
                 </div>
               ) : (
                 <div className="relative min-h-[100px] border bg-gray-50 rounded-md p-2">
-                  {arrangedPlans.map((item) => {
-                    // 계획 상태에 따른 색상 결정
-                    const bgColor =
-                      item.plan.status === PlanStatus.COMPLETED
-                        ? "bg-green-200"
-                        : item.plan.status === PlanStatus.IN_PROGRESS
-                        ? "bg-blue-200"
-                        : item.plan.status === PlanStatus.CANCELED
-                        ? "bg-red-200"
-                        : "bg-gray-200";
-
-                    // 날짜 간 차이 계산
-                    const startDate = new Date(item.plan.startDate);
-                    const endDate = new Date(item.plan.endDate);
-                    const daysDiff = differenceInDays(endDate, startDate) + 1;
-
+                  {/* 최상위 계획 렌더링 */}
+                  {arrangedPlans.topLevelPlans.map((item) => {
                     const rowHeight = 40; // 각 행의 높이
-                    const rowSpacing = 8; // 행 간 간격
+                    const rowSpacing = 12; // 최상위 계획 간 간격 (더 넓게)
+                    const topOffset = item.row * (rowHeight + rowSpacing) * 2; // 최상위 계획 간 간격 2배
 
                     return (
-                      <Popover key={item.plan.id}>
-                        <PopoverTrigger asChild>
-                          <div
-                            className={`absolute rounded-lg border px-3 py-1 shadow-sm ${bgColor} cursor-pointer hover:brightness-95 transition-all`}
-                            style={{
-                              left: `${item.left}px`,
-                              width: `${item.width}px`,
-                              top: `${
-                                item.row * (rowHeight + rowSpacing) + 4
-                              }px`,
-                              height: `${rowHeight - 8}px`, // 행 높이에서 약간의 패딩
-                            }}
-                          >
-                            <div className="text-xs font-medium truncate">
-                              {item.plan.name}
-                            </div>
-                          </div>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-72 p-4">
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-start">
-                              <h3 className="font-bold text-lg">
-                                {item.plan.name}
-                              </h3>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                onClick={() => {
-                                  setSelectedPlan(item.plan);
-                                  setIsEditDialogOpen(true);
-                                }}
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                            {item.plan.description && (
-                              <p className="text-sm text-gray-600">
-                                {item.plan.description}
-                              </p>
-                            )}
-                            <div className="text-xs space-y-1">
-                              <div className="flex items-center">
-                                <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
-                                <span>시작: {formatDate(startDate)}</span>
-                              </div>
-                              <div className="flex items-center">
-                                <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
-                                <span>종료: {formatDate(endDate)}</span>
-                              </div>
-                              <div className="flex items-center mt-1">
-                                <span className="text-gray-500 mr-1.5">
-                                  기간:
-                                </span>
-                                <span>{daysDiff}일</span>
-                              </div>
-                              <div className="flex items-center mt-1">
-                                <span className="text-gray-500 mr-1.5">
-                                  상태:
-                                </span>
-                                <span
-                                  className={`px-1.5 py-0.5 rounded text-xs ${getStatusColor(
-                                    item.plan.status
-                                  )}`}
-                                >
-                                  {item.plan.status}
-                                </span>
-                              </div>
-                              {item.plan.progress > 0 && (
-                                <div className="mt-2">
-                                  <div className="flex justify-between text-xs mb-1">
-                                    <span>진행률</span>
-                                    <span>{item.plan.progress}%</span>
+                      <div
+                        key={item.plan.id}
+                        className="relative"
+                        style={{
+                          height: `${rowHeight}px`,
+                          marginTop: item.row > 0 ? `${rowSpacing}px` : "0",
+                        }}
+                      >
+                        <TimelineItem
+                          plan={item.plan}
+                          allYearQuarters={allYearQuarters}
+                          onAddSubPlan={handleAddSubPlan}
+                          isParent={true}
+                        />
+
+                        {/* 해당 최상위 계획의 하위 계획 렌더링 */}
+                        {arrangedPlans.subPlans
+                          .filter(
+                            (subItem) => subItem.parentId === item.plan.id
+                          )
+                          .map((subItem, subIndex) => {
+                            const subRowHeight = 34; // 하위 계획 행 높이
+                            const subRowSpacing = 4; // 하위 계획 간 간격
+                            const subTopOffset =
+                              topOffset +
+                              rowHeight +
+                              4 +
+                              subItem.row * (subRowHeight + subRowSpacing);
+
+                            return (
+                              <Popover key={`sub-${subItem.plan.id}`}>
+                                <PopoverTrigger asChild>
+                                  <div
+                                    className="absolute rounded-lg border px-3 py-1 shadow-sm cursor-pointer hover:brightness-95 transition-all bg-opacity-80"
+                                    style={{
+                                      left: `${subItem.left}px`,
+                                      width: `${subItem.width}px`,
+                                      top: `${subTopOffset}px`,
+                                      height: `${subRowHeight - 8}px`,
+                                      backgroundColor:
+                                        item.plan.color || "#e5e7eb",
+                                    }}
+                                    onClick={() => {
+                                      setSelectedPlan(subItem.plan);
+                                      setIsEditDialogOpen(true);
+                                    }}
+                                  >
+                                    <div className="text-xs font-medium truncate">
+                                      {subItem.plan.name}
+                                    </div>
                                   </div>
-                                  <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                    <div
-                                      className="bg-blue-600 h-1.5 rounded-full"
-                                      style={{
-                                        width: `${item.plan.progress}%`,
-                                      }}
-                                    />
+                                </PopoverTrigger>
+                                <PopoverContent className="w-72 p-4">
+                                  <div className="space-y-2">
+                                    <div className="flex justify-between items-start">
+                                      <h3 className="font-bold text-lg">
+                                        {subItem.plan.name}
+                                      </h3>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => {
+                                          setSelectedPlan(subItem.plan);
+                                          setIsEditDialogOpen(true);
+                                        }}
+                                      >
+                                        <Edit2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                    {subItem.plan.description && (
+                                      <p className="text-sm text-gray-600">
+                                        {subItem.plan.description}
+                                      </p>
+                                    )}
+                                    <div className="text-xs space-y-1">
+                                      <div className="flex items-center mt-1">
+                                        <span className="text-gray-500 mr-1.5">
+                                          상위 계획:
+                                        </span>
+                                        <span className="text-blue-600">
+                                          {item.plan.name}
+                                        </span>
+                                      </div>
+                                      {/* 기존 날짜, 상태 등 정보들 표시 */}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
+                                </PopoverContent>
+                              </Popover>
+                            );
+                          })}
+                      </div>
                     );
                   })}
                 </div>

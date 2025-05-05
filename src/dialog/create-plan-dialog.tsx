@@ -62,6 +62,8 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+// FormValues 타입을 내보냅니다
+export type { FormValues };
 
 interface PlanFormProps {
   initialValues?: Partial<FormValues>;
