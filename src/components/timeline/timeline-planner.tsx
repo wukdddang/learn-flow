@@ -495,12 +495,12 @@ export function TimelinePlanner() {
         </div>
       </div>
 
-      {isEditDialogOpen && selectedPlan && (
+      {selectedPlan && (
         <EditPlan
           plan={selectedPlan}
-          onClose={() => {
-            setIsEditDialogOpen(false);
-            setSelectedPlan(null);
+          open={isEditDialogOpen}
+          onOpenChange={(open) => {
+            setIsEditDialogOpen(open);
           }}
           onUpdate={updatePlan}
           onDelete={deletePlan}

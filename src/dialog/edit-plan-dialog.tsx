@@ -12,22 +12,26 @@ import { Button } from "@/components/ui/button";
 
 import { PlanForm } from "./create-plan-dialog";
 import { Plan } from "@/src/lib/types";
-import { useStore } from "@/src/lib/store";
 
 interface EditPlanProps {
   plan: Plan;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onUpdate: (id: string, updatedData: Partial<Plan>) => void;
   onDelete: (id: string) => void;
 }
 
-export function EditPlan({ plan, onClose, onUpdate, onDelete }: EditPlanProps) {
-  const [isOpen, setIsOpen] = useState(true);
+export function EditPlan({
+  plan,
+  open,
+  onOpenChange,
+  onUpdate,
+  onDelete,
+}: EditPlanProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const handleClose = () => {
-    setIsOpen(false);
-    onClose();
+    onOpenChange(false);
   };
 
   const handleSubmit = (values: any) => {
@@ -47,7 +51,7 @@ export function EditPlan({ plan, onClose, onUpdate, onDelete }: EditPlanProps) {
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>계획 수정</DialogTitle>
