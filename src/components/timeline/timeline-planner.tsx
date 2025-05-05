@@ -21,7 +21,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { PlanForm } from "../../dialog/create-plan-dialog";
+import { CreatePlanDialog } from "../../dialog/create-plan-dialog";
 import { EditPlan } from "../../dialog/edit-plan-dialog";
 import { Plan, PlanStatus } from "@/src/lib/types";
 import { format, differenceInDays } from "@/src/lib/date-utils";
@@ -233,7 +233,6 @@ export function TimelinePlanner() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
@@ -263,45 +262,9 @@ export function TimelinePlanner() {
     }
   };
 
-  // 새 계획 추가
-  const addPlan = async (planData: {
-    name: string;
-    description?: string;
-    startDate: Date;
-    endDate: Date;
-    color?: string;
-  }) => {
-    try {
-      // Plan 인터페이스에 맞게 데이터 구성
-      const completeData = {
-        ...planData,
-        status: PlanStatus.NOT_STARTED,
-        progress: 0,
-      };
-
-      const response = await fetch("/api/plans", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(completeData),
-      });
-
-      if (!response.ok) {
-        throw new Error("계획을 추가하는데 실패했습니다.");
-      }
-
-      const newPlan = await response.json();
-      // MongoDB의 _id 값을 id로 매핑
-      const planWithId = {
-        ...newPlan,
-        id: newPlan._id || newPlan.id, // _id가 있으면 사용하고, 없으면 기존 id 사용
-      };
-      setPlans((prev) => [...prev, planWithId]);
-    } catch (err) {
-      console.error("계획 추가 오류:", err);
-      setError("계획을 추가하는 중 오류가 발생했습니다.");
-    }
+  // 계획 추가 성공 핸들러
+  const handlePlanCreated = (newPlan: Plan) => {
+    setPlans((prev) => [...prev, newPlan]);
   };
 
   // 계획 수정
@@ -528,29 +491,7 @@ export function TimelinePlanner() {
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">타임라인 계획</h2>
         <div className="flex space-x-2">
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus size={16} className="mr-1" />새 계획 생성
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>새 계획 생성</DialogTitle>
-              </DialogHeader>
-              <PlanForm
-                initialValues={{
-                  startDate: new Date(),
-                  endDate: new Date(),
-                }}
-                onSubmit={(values) => {
-                  addPlan(values);
-                  setIsDialogOpen(false);
-                }}
-                onCancel={() => setIsDialogOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
+          <CreatePlanDialog onSuccess={handlePlanCreated} />
         </div>
       </div>
 

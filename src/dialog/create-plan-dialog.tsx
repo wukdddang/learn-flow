@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Calendar as CalendarIcon, Check } from "lucide-react";
+import { Calendar as CalendarIcon, Check, Plus } from "lucide-react";
+import { useState } from "react";
 
 import {
   Form,
@@ -27,9 +28,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 import { cn } from "@/lib/utils";
 import { format } from "@/src/lib/date-utils";
+import { Plan, PlanStatus } from "@/src/lib/types";
 
 // 계획 색상 목록
 export const planColors = [
@@ -235,5 +244,105 @@ export function PlanForm({ initialValues, onSubmit, onCancel }: PlanFormProps) {
         </div>
       </form>
     </Form>
+  );
+}
+
+// API를 직접 호출하는 계획 생성 다이얼로그 컴포넌트
+interface CreatePlanDialogProps {
+  onSuccess?: (newPlan: Plan) => void;
+  trigger?: React.ReactNode;
+}
+
+export function CreatePlanDialog({
+  onSuccess,
+  trigger,
+}: CreatePlanDialogProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (values: FormValues) => {
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      // Plan 인터페이스에 맞게 데이터 구성
+      const planData = {
+        ...values,
+        status: PlanStatus.NOT_STARTED,
+        progress: 0,
+      };
+
+      const response = await fetch("/api/plans", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(planData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "계획을 생성하는데 실패했습니다.");
+      }
+
+      const newPlan = await response.json();
+
+      // 성공 콜백 호출
+      if (onSuccess) {
+        const planWithId = {
+          ...newPlan,
+          id: newPlan._id || newPlan.id,
+        };
+        onSuccess(planWithId);
+      }
+
+      // 다이얼로그 닫기
+      setIsOpen(false);
+    } catch (err) {
+      console.error("계획 생성 오류:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "계획을 생성하는 중 오류가 발생했습니다."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        {trigger || (
+          <Button>
+            <Plus size={16} className="mr-1" />새 계획 생성
+          </Button>
+        )}
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>새 계획 생성</DialogTitle>
+        </DialogHeader>
+        {error && (
+          <div className="bg-red-50 text-red-500 p-3 rounded-md mb-4">
+            {error}
+          </div>
+        )}
+        <PlanForm
+          initialValues={{
+            startDate: new Date(),
+            endDate: new Date(),
+          }}
+          onSubmit={handleSubmit}
+          onCancel={() => setIsOpen(false)}
+        />
+        {isSubmitting && (
+          <div className="absolute inset-0 bg-black/5 flex items-center justify-center rounded-lg">
+            <div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
