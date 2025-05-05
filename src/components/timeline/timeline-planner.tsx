@@ -417,13 +417,18 @@ export function TimelinePlanner() {
       left: number;
       width: number;
     }[][] = [];
-    const subPlanRows: {
-      plan: Plan;
-      row: number;
-      left: number;
-      width: number;
-      parentId: string;
-    }[][] = [];
+
+    // 하위 계획을 부모 ID별로 그룹화하기 위한 객체
+    const subPlanRowsByParent: Record<
+      string,
+      {
+        plan: Plan;
+        row: number;
+        left: number;
+        width: number;
+        parentId: string;
+      }[]
+    > = {};
 
     // 최상위 계획과 하위 계획 분리
     const topLevelPlans = plans.filter((p) => !p.parentPlanId);
@@ -603,27 +608,33 @@ export function TimelinePlanner() {
           startPosition * 300;
       }
 
-      // 각 하위 계획마다 별도의 행에 배치 (기존 겹침 체크 로직 제거)
-      // 정확한 부모 계획 정보를 유지하면서 각 계획에 고유 행 부여
-      const rowIndex = subPlanRows.length;
-      if (!subPlanRows[rowIndex]) {
-        subPlanRows[rowIndex] = [];
+      // 부모 계획 ID를 이용해 하위 계획 행을 그룹화
+      const parentId = plan.parentPlanId || "";
+
+      // 부모 ID별로 하위 계획의 위치를 추적하는 객체 초기화
+      if (!subPlanRowsByParent[parentId]) {
+        subPlanRowsByParent[parentId] = [];
       }
 
+      // 각 부모별로 행 인덱스 계산 (각 부모마다 0부터 시작)
+      const rowIndex = subPlanRowsByParent[parentId].length;
+
       // 결정된 행에 이벤트 추가
-      subPlanRows[rowIndex].push({
+      subPlanRowsByParent[parentId].push({
         plan,
-        row: rowIndex,
+        row: rowIndex, // 부모 내 행 인덱스
         left: leftPos,
         width: Math.max(width, 10),
-        parentId: plan.parentPlanId || "",
+        parentId: parentId,
       });
     });
 
     // 모든 행의 이벤트 합치되, 최상위 계획과 하위 계획 정보 유지
+    const allSubPlans = Object.values(subPlanRowsByParent).flat();
+
     return {
       topLevelPlans: topLevelRows.flat(),
-      subPlans: subPlanRows.flat(),
+      subPlans: allSubPlans,
     };
   }, [plans, allYearQuarters]);
 
@@ -983,11 +994,13 @@ export function TimelinePlanner() {
                                 subPlansForParent.map((subItem, subIndex) => {
                                   const subRowHeight = 34; // 하위 계획 행 높이
                                   const subRowSpacing = 4; // 하위 계획 간 간격
+
+                                  // 하위 계획의 위치는 항상 부모 계획 바로 아래에서 시작
+                                  // 각 하위 계획은 동일한 부모 아래에서 순차적으로 배치됨
                                   const subTopOffset =
                                     rowHeight +
                                     4 +
-                                    subItem.row *
-                                      (subRowHeight + subRowSpacing);
+                                    subIndex * (subRowHeight + subRowSpacing);
 
                                   return (
                                     <div

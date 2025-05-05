@@ -3,15 +3,15 @@ import { connectToDatabase } from "@/src/lib/db";
 import { Plan } from "@/src/lib/models";
 
 interface Params {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 // 특정 계획 가져오기
 export async function GET(request: NextRequest, { params }: Params) {
   try {
-    const { id } = params;
+    const { id } = await params;
     await connectToDatabase();
 
     const plan = await Plan.findById(id);
@@ -36,6 +36,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
     const body = await request.json();
+    const { id } = await params;
     await connectToDatabase();
 
     // 수정할 필드 지정
@@ -56,7 +57,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         delete updateData[key as keyof typeof updateData]
     );
 
-    const updatedPlan = await Plan.findByIdAndUpdate(params.id, updateData, {
+    const updatedPlan = await Plan.findByIdAndUpdate(id, updateData, {
       new: true, // 업데이트된 문서 반환
       runValidators: true, // 모델의 유효성 검사 실행
     });
@@ -81,7 +82,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 // 계획 삭제
 export async function DELETE(request: NextRequest, { params }: Params) {
   try {
-    const { id } = params;
+    const { id } = await params;
     await connectToDatabase();
 
     const deletedPlan = await Plan.findByIdAndDelete(id);
