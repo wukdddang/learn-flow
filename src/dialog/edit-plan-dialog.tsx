@@ -90,6 +90,7 @@ export function EditPlan({
             onSubmit={handleSubmit}
             onCancel={handleClose}
             isLoading={isLoading}
+            isFormCreate={false}
           />
         </DialogContent>
       </Dialog>

@@ -73,6 +73,7 @@ interface PlanFormProps {
   minDate?: Date;
   maxDate?: Date;
   isLoading?: boolean;
+  isFormCreate?: boolean;
 }
 
 export function PlanForm({
@@ -82,6 +83,7 @@ export function PlanForm({
   minDate,
   maxDate,
   isLoading,
+  isFormCreate = false,
 }: PlanFormProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -266,12 +268,12 @@ export function PlanForm({
             {isLoading ? (
               <>
                 <div className="h-4 w-4 mr-2 border-2 border-t-transparent rounded-full animate-spin" />
-                {initialValues ? "수정 중..." : "생성 중..."}
+                {isFormCreate ? "생성 중..." : "수정 중..."}
               </>
-            ) : initialValues ? (
-              "수정"
-            ) : (
+            ) : isFormCreate ? (
               "생성"
+            ) : (
+              "수정"
             )}
           </Button>
         </div>
@@ -372,6 +374,7 @@ export function CreatePlanDialog({
           onSubmit={handleSubmit}
           onCancel={() => setIsOpen(false)}
           isLoading={isSubmitting}
+          isFormCreate={true}
         />
         {isSubmitting && (
           <div className="absolute inset-0 bg-black/5 flex items-center justify-center rounded-lg">
