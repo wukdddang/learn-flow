@@ -400,10 +400,40 @@ export function TimelinePlanner() {
     setParentPlanForSubPlan(null);
   };
 
+  // 하위 계획 노드와 그 하위 계획들의 총 높이를 계산하는 함수
+  const calculatePlanHeight = (planId: string): number => {
+    const subRowHeight = 34; // 하위 계획 행 높이
+    const subRowSpacing = 4; // 하위 계획 간 간격
+
+    // 이 계획의 하위 계획이 확장되어 있지 않으면 기본 높이만 반환
+    if (!expandedPlans[planId]) {
+      return 0;
+    }
+
+    // 해당 계획의 직접적인 하위 계획들
+    const subPlans = arrangedPlans.subPlans.filter(
+      (subItem) => subItem.parentId === planId
+    );
+
+    if (subPlans.length === 0) {
+      return 0;
+    }
+
+    // 각 하위 계획의 높이 (자신 + 하위 계획들)의 합
+    let totalHeight = subPlans.length * (subRowHeight + subRowSpacing);
+
+    // 각 하위 계획이 가진 하위 계획들의 높이도 누적
+    for (const subPlan of subPlans) {
+      totalHeight += calculatePlanHeight(subPlan.plan.id);
+    }
+
+    return totalHeight;
+  };
+
   // 하위 계획 렌더링 함수 (재귀적으로 호출 가능)
   const renderSubPlans = (
     parentId: string,
-    baseTopOffset: number,
+    initialTopOffset: number,
     depth: number = 0
   ) => {
     // 해당 부모 ID를 가진 하위 계획 필터링
@@ -418,18 +448,27 @@ export function TimelinePlanner() {
     const subRowHeight = 34; // 하위 계획 행 높이
     const subRowSpacing = 4; // 하위 계획 간 간격
 
+    // 각 하위 계획의 렌더링 결과와 현재 탑 오프셋을 추적
+    let currentTopOffset = initialTopOffset;
+
     return (
       <>
         {subPlansForParent.map((subItem, subIndex) => {
-          // 하위 계획의 위치는 항상 부모 계획 바로 아래에서 시작
-          // 각 하위 계획은 동일한 부모 아래에서 순차적으로 배치됨
-          const subTopOffset =
-            baseTopOffset + subIndex * (subRowHeight + subRowSpacing);
-
           // 이 하위 계획이 자신의 하위 계획을 가지고 있는지 확인
           const hasNestedSubPlans = arrangedPlans.subPlans.some(
             (plan) => plan.parentId === subItem.plan.id
           );
+
+          // 이전 항목들이 차지한 공간을 고려하여 현재 항목의 위치 결정
+          const subTopOffset = currentTopOffset;
+
+          // 다음 항목을 위한 topOffset 계산 (현재 항목의 높이 + 자신의 하위 계획 높이)
+          const subPlanExpanded =
+            expandedPlans[subItem.plan.id] && hasNestedSubPlans;
+          const nestedHeight = subPlanExpanded
+            ? calculatePlanHeight(subItem.plan.id)
+            : 0;
+          currentTopOffset += subRowHeight + subRowSpacing + nestedHeight;
 
           return (
             <div key={`sub-${subItem.plan.id}-depth-${depth}`}>
@@ -751,7 +790,7 @@ export function TimelinePlanner() {
                           position: "relative",
                         }}
                       >
-                        {planPositions.map((item) => {
+                        {planPositions.map((item, topLevelIndex) => {
                           const isExpanded = expandedPlans[item.plan.id];
 
                           // 하위 계획 필터링
@@ -763,13 +802,20 @@ export function TimelinePlanner() {
                           // 토글 아이콘 표시 여부
                           const hasSubPlans = subPlansForParent.length > 0;
 
+                          // 이전 최상위 계획들의 하위 계획 높이 계산 (필요시)
+                          let topOffset = item.topOffset;
+                          if (topLevelIndex > 0) {
+                            // 이전 항목들의 하위 계획 높이를 고려하여 위치 조정 가능
+                            // 현재는 arrangedPlans에서 이미 계산됨
+                          }
+
                           return (
                             <div
                               key={item.plan.id}
                               className="relative"
                               style={{
                                 position: "absolute",
-                                top: `${item.topOffset}px`,
+                                top: `${topOffset}px`,
                                 left: 0,
                                 right: 0,
                                 height: `${rowHeight}px`,
