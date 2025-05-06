@@ -3,6 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Calendar as CalendarIcon, Plus } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import {
   Form,
@@ -329,6 +330,7 @@ export function CreatePlanDialog({
         onSuccess(planWithId);
       }
 
+      toast.success("새 계획이 성공적으로 생성되었습니다.");
       // 다이얼로그 닫기
       setIsOpen(false);
     } catch (err) {
@@ -338,6 +340,7 @@ export function CreatePlanDialog({
           ? err.message
           : "계획을 생성하는 중 오류가 발생했습니다."
       );
+      toast.error("계획 생성 중 오류가 발생했습니다.");
     } finally {
       setIsSubmitting(false);
     }

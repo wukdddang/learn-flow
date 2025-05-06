@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -43,9 +44,11 @@ export function EditPlan({
         status: plan.status,
         progress: plan.progress,
       });
+      toast.success("계획이 성공적으로 수정되었습니다.");
       handleClose();
     } catch (error) {
       console.error("계획 업데이트 중 오류 발생:", error);
+      toast.error("계획 수정 중 오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
     }
@@ -53,6 +56,7 @@ export function EditPlan({
 
   const handleDelete = () => {
     onDelete(plan.id);
+    toast.success("계획이 삭제되었습니다.");
     setIsDeleteDialogOpen(false);
     handleClose();
   };
