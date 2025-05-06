@@ -147,11 +147,6 @@ export function TimelinePlanner() {
     return result;
   }, [years]);
 
-  // 계획 노드가 확장되었는지 확인하는 함수 추가
-  const isPlanExpanded = (planId: string) => {
-    return !!expandedPlans[planId];
-  };
-
   // 이벤트 행 배치 계산 - 최상위 계획과 하위 계획 구분
   const arrangedPlans = useMemo(() => {
     const topLevelRows: {
@@ -453,7 +448,7 @@ export function TimelinePlanner() {
 
     return (
       <>
-        {subPlansForParent.map((subItem, subIndex) => {
+        {subPlansForParent.map((subItem) => {
           // 이 하위 계획이 자신의 하위 계획을 가지고 있는지 확인
           const hasNestedSubPlans = arrangedPlans.subPlans.some(
             (plan) => plan.parentId === subItem.plan.id
@@ -803,7 +798,7 @@ export function TimelinePlanner() {
                           const hasSubPlans = subPlansForParent.length > 0;
 
                           // 이전 최상위 계획들의 하위 계획 높이 계산 (필요시)
-                          let topOffset = item.topOffset;
+                          const topOffset = item.topOffset;
                           if (topLevelIndex > 0) {
                             // 이전 항목들의 하위 계획 높이를 고려하여 위치 조정 가능
                             // 현재는 arrangedPlans에서 이미 계산됨
