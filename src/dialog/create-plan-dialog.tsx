@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { Calendar as CalendarIcon, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ko } from "date-fns/locale";
 
 import {
   Form,
@@ -148,7 +149,7 @@ export function PlanForm({
                         )}
                       >
                         {field.value ? (
-                          format(field.value, "PPP")
+                          format(field.value, "PPP", { locale: ko })
                         ) : (
                           <span>날짜 선택</span>
                         )}
@@ -164,6 +165,7 @@ export function PlanForm({
                       initialFocus
                       fromDate={minDate}
                       toDate={maxDate}
+                      locale={ko}
                     />
                   </PopoverContent>
                 </Popover>
@@ -189,7 +191,7 @@ export function PlanForm({
                         )}
                       >
                         {field.value ? (
-                          format(field.value, "PPP")
+                          format(field.value, "PPP", { locale: ko })
                         ) : (
                           <span>날짜 선택</span>
                         )}
@@ -205,6 +207,7 @@ export function PlanForm({
                       initialFocus
                       fromDate={minDate}
                       toDate={maxDate}
+                      locale={ko}
                     />
                   </PopoverContent>
                 </Popover>

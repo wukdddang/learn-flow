@@ -12,6 +12,7 @@ import {
   isSameMonth,
   getMonth,
   getYear,
+  Locale,
 } from "date-fns";
 
 // date-fns 래퍼 함수들
@@ -31,6 +32,10 @@ export {
   getYear,
 };
 
-export const format = (date: Date, formatStr: string): string => {
-  return formatDate(date, formatStr);
+export const format = (
+  date: Date,
+  formatStr: string,
+  options?: { locale: Locale }
+): string => {
+  return formatDate(date, formatStr, options);
 };
