@@ -147,6 +147,11 @@ export function TimelinePlanner() {
     return result;
   }, [years]);
 
+  // 계획 노드가 확장되었는지 확인하는 함수 추가
+  const isPlanExpanded = (planId: string) => {
+    return !!expandedPlans[planId];
+  };
+
   // 이벤트 행 배치 계산 - 최상위 계획과 하위 계획 구분
   const arrangedPlans = useMemo(() => {
     const topLevelRows: {
@@ -393,6 +398,120 @@ export function TimelinePlanner() {
     setPlans((prev) => [...prev, newPlan]);
     setIsSubPlanDialogOpen(false);
     setParentPlanForSubPlan(null);
+  };
+
+  // 하위 계획 렌더링 함수 (재귀적으로 호출 가능)
+  const renderSubPlans = (
+    parentId: string,
+    baseTopOffset: number,
+    depth: number = 0
+  ) => {
+    // 해당 부모 ID를 가진 하위 계획 필터링
+    const subPlansForParent = arrangedPlans.subPlans.filter(
+      (subItem) => subItem.parentId === parentId
+    );
+
+    if (subPlansForParent.length === 0 || !expandedPlans[parentId]) {
+      return null;
+    }
+
+    const subRowHeight = 34; // 하위 계획 행 높이
+    const subRowSpacing = 4; // 하위 계획 간 간격
+
+    return (
+      <>
+        {subPlansForParent.map((subItem, subIndex) => {
+          // 하위 계획의 위치는 항상 부모 계획 바로 아래에서 시작
+          // 각 하위 계획은 동일한 부모 아래에서 순차적으로 배치됨
+          const subTopOffset =
+            baseTopOffset + subIndex * (subRowHeight + subRowSpacing);
+
+          // 이 하위 계획이 자신의 하위 계획을 가지고 있는지 확인
+          const hasNestedSubPlans = arrangedPlans.subPlans.some(
+            (plan) => plan.parentId === subItem.plan.id
+          );
+
+          return (
+            <div key={`sub-${subItem.plan.id}-depth-${depth}`}>
+              <div
+                className="absolute rounded-lg border px-3 py-1 shadow-sm cursor-pointer hover:brightness-95 transition-all bg-opacity-80"
+                style={{
+                  left: `${subItem.left}px`,
+                  width: `${subItem.width}px`,
+                  top: `${subTopOffset}px`,
+                  height: `${subRowHeight - 8}px`,
+                  backgroundColor:
+                    subItem.plan.status === PlanStatus.COMPLETED
+                      ? "rgb(187, 247, 208)"
+                      : subItem.plan.status === PlanStatus.IN_PROGRESS
+                      ? "rgb(191, 219, 254)"
+                      : subItem.plan.status === PlanStatus.CANCELED
+                      ? "rgb(254, 202, 202)"
+                      : "rgb(229, 231, 235)",
+                  zIndex: 5,
+                }}
+                onClick={() => {
+                  if (hasNestedSubPlans) {
+                    togglePlanExpansion(subItem.plan.id);
+                  } else {
+                    setSelectedPlan(subItem.plan);
+                    setIsEditDialogOpen(true);
+                  }
+                }}
+              >
+                <div className="flex items-center justify-between h-full">
+                  <div className="flex items-center">
+                    {hasNestedSubPlans && (
+                      <div className="mr-1">
+                        {expandedPlans[subItem.plan.id] ? (
+                          <ChevronDown size={12} />
+                        ) : (
+                          <ChevronRight size={12} />
+                        )}
+                      </div>
+                    )}
+                    <div className="text-xs font-medium truncate">
+                      {subItem.plan.name}
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <button
+                      className="ml-1 p-0.5 bg-white rounded-full hover:bg-gray-100 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddSubPlan(subItem.plan);
+                      }}
+                      title="하위 계획 추가"
+                    >
+                      <Plus size={12} className="text-blue-500" />
+                    </button>
+                    <button
+                      className="ml-1 p-0.5 bg-white rounded-full hover:bg-gray-100 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPlan(subItem.plan);
+                        setIsEditDialogOpen(true);
+                      }}
+                      title="계획 편집"
+                    >
+                      <Edit2 size={12} className="text-gray-500" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 재귀적으로 하위 계획의 하위 계획 렌더링 */}
+              {expandedPlans[subItem.plan.id] &&
+                renderSubPlans(
+                  subItem.plan.id,
+                  subTopOffset + subRowHeight,
+                  depth + 1
+                )}
+            </div>
+          );
+        })}
+      </>
+    );
   };
 
   return (
@@ -727,52 +846,8 @@ export function TimelinePlanner() {
                                 </div>
                               </div>
 
-                              {/* 하위 계획 렌더링 - 확장된 경우에만 */}
-                              {isExpanded &&
-                                subPlansForParent.map((subItem, subIndex) => {
-                                  const subRowHeight = 34; // 하위 계획 행 높이
-                                  const subRowSpacing = 4; // 하위 계획 간 간격
-
-                                  // 하위 계획의 위치는 항상 부모 계획 바로 아래에서 시작
-                                  // 각 하위 계획은 동일한 부모 아래에서 순차적으로 배치됨
-                                  const subTopOffset =
-                                    rowHeight +
-                                    4 +
-                                    subIndex * (subRowHeight + subRowSpacing);
-
-                                  return (
-                                    <div
-                                      key={`sub-${subItem.plan.id}`}
-                                      className="absolute rounded-lg border px-3 py-1 shadow-sm cursor-pointer hover:brightness-95 transition-all bg-opacity-80"
-                                      style={{
-                                        left: `${subItem.left}px`,
-                                        width: `${subItem.width}px`,
-                                        top: `${subTopOffset}px`,
-                                        height: `${subRowHeight - 8}px`,
-                                        backgroundColor:
-                                          subItem.plan.status ===
-                                          PlanStatus.COMPLETED
-                                            ? "rgb(187, 247, 208)"
-                                            : subItem.plan.status ===
-                                              PlanStatus.IN_PROGRESS
-                                            ? "rgb(191, 219, 254)"
-                                            : subItem.plan.status ===
-                                              PlanStatus.CANCELED
-                                            ? "rgb(254, 202, 202)"
-                                            : "rgb(229, 231, 235)",
-                                        zIndex: 5,
-                                      }}
-                                      onClick={() => {
-                                        setSelectedPlan(subItem.plan);
-                                        setIsEditDialogOpen(true);
-                                      }}
-                                    >
-                                      <div className="text-xs font-medium truncate">
-                                        {subItem.plan.name}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
+                              {/* 최상위 계획의 하위 계획 렌더링, 재귀 함수 사용 */}
+                              {renderSubPlans(item.plan.id, rowHeight + 4, 0)}
                             </div>
                           );
                         })}
