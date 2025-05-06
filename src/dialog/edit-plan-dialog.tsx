@@ -17,7 +17,7 @@ interface EditPlanProps {
   plan: Plan;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpdate: (id: string, updatedData: Partial<Plan>) => void;
+  onUpdate: (id: string, updatedData: Partial<Plan>) => Promise<void>;
   onDelete: (id: string) => void;
 }
 
@@ -29,18 +29,26 @@ export function EditPlan({
   onDelete,
 }: EditPlanProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleClose = () => {
     onOpenChange(false);
   };
 
-  const handleSubmit = (values: FormValues) => {
-    onUpdate(plan.id, {
-      ...values,
-      status: plan.status,
-      progress: plan.progress,
-    });
-    handleClose();
+  const handleSubmit = async (values: FormValues) => {
+    try {
+      setIsLoading(true);
+      await onUpdate(plan.id, {
+        ...values,
+        status: plan.status,
+        progress: plan.progress,
+      });
+      handleClose();
+    } catch (error) {
+      console.error("계획 업데이트 중 오류 발생:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDelete = () => {
@@ -77,6 +85,7 @@ export function EditPlan({
             }}
             onSubmit={handleSubmit}
             onCancel={handleClose}
+            isLoading={isLoading}
           />
         </DialogContent>
       </Dialog>
